@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "295714444020",
+    "project_id": "sora-eg",
+    "storage_bucket": "sora-eg.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:295714444020:android:655c9e9ae0acdf8ab544a1",
+        "android_client_info": {
+          "package_name": "com.softforge.sora"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "295714444020-d19at157u5tmdibhm0rjut1q52jcj5h7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.softforge.sora",
+            "certificate_hash": "0cdc03a4a9db4fd8199bbc22a5beec24f8340e25"
+          }
+        },
+        {
+          "client_id": "295714444020-62m441kgcrulkq08jhocrf4mkn5hj5tu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbXd3lIV6zYpE6IWGRxcVrJ8C3Vx7CqFQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "295714444020-62m441kgcrulkq08jhocrf4mkn5hj5tu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "295714444020-hu37a175ntl53tn2jiubm1nesemv41d3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.softforge.sora"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
