@@ -41,7 +41,8 @@ class AddressController extends GetxController {
     }
   }
 
-  Future<void> addAddress(String address, String landmark) async {
+  Future<void> addAddress(
+      String address, String landmark, double? lat, double? lng) async {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) return;
     await SupabaseService.client.from('address_book').insert({
@@ -49,21 +50,31 @@ class AddressController extends GetxController {
       'address': address,
       'landmark': landmark,
       'isDefault': addresses.isEmpty,
+      'latitude': ?lat,
+      'longitude': ?lng,
     });
     await fetchAddresses();
   }
 
   Future<void> updateAddress(
-      int id, String address, String landmark) async {
-    await SupabaseService.client
-        .from('address_book')
-        .update({'address': address, 'landmark': landmark}).eq('id', id);
+      int id, String address, String landmark, double? lat, double? lng) async {
+    await SupabaseService.client.from('address_book').update({
+      'address': address,
+      'landmark': landmark,
+      'latitude': ?lat,
+      'longitude': ?lng,
+    }).eq('id', id);
     await fetchAddresses();
   }
 
   Future<void> setDefault(int id) async {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) return;
+
+    addresses.value = addresses
+      .map((address) => address.copyWith(isDefault: address.id == id))
+      .toList();
+
     await SupabaseService.client
         .from('address_book')
         .update({'isDefault': false}).eq('userID', userId);

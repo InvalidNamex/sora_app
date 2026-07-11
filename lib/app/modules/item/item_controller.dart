@@ -22,9 +22,13 @@ class ItemController extends GetxController {
   ItemPropertyModel? get selectedProperty =>
       properties.isNotEmpty ? properties[selectedPropertyIndex.value] : null;
 
+    ItemPropertyModel? get defaultProperty =>
+      properties.firstWhereOrNull((p) => p.isDefault);
+
   String get effectiveDescription {
-    final propertyDescription = selectedProperty?.propertyDescription?.trim();
-    if (propertyDescription != null && propertyDescription.isNotEmpty) {
+      final propertyDescription =
+          (selectedProperty?.propertyDescription ?? '').trim();
+    if (propertyDescription.isNotEmpty) {
       return propertyDescription;
     }
 
@@ -75,6 +79,8 @@ class ItemController extends GetxController {
   }
 
   void retry() => _fetchItem();
+
+  Future<void> refreshItem() => _fetchItem();
 
   void selectProperty(int index) => selectedPropertyIndex.value = index;
 

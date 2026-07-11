@@ -4,10 +4,14 @@ import 'package:get_storage/get_storage.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/address_model.dart';
+import '../../core/models/promotion_model.dart';
 import '../../core/models/voucher_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../auth/auth_controller.dart';
 import '../cart/cart_controller.dart';
+import '../history/history_controller.dart';
+import '../navigation/nav_controller.dart';
 import '../../routes/app_pages.dart';
 
 class CheckoutController extends GetxController {
@@ -20,6 +24,7 @@ class CheckoutController extends GetxController {
   final placingOrder = false.obs;
   final promoCtrl = TextEditingController();
   final notesCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController();
 
   double get cartTotal => CartController.to.totalPrice;
   double get finalTotal => (cartTotal - discount.value).clamp(0, double.infinity);
@@ -27,21 +32,28 @@ class CheckoutController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    _loadAddresses();
+    loadAddresses();
+    // Pre-populate phone from user profile.
+    final user = AuthController.to.currentUser.value;
+    if (user != null) {
+      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true ? user.phoneTwo! : user.phone;
+    }
   }
 
   @override
   void onClose() {
     promoCtrl.dispose();
     notesCtrl.dispose();
+    phoneCtrl.dispose();
     super.onClose();
   }
 
   // ── Address ───────────────────────────────────────────────────────────────
 
-  Future<void> _loadAddresses() async {
+    Future<void> loadAddresses() async {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) return;
+    final previousSelectedId = selectedAddress.value?.id;
     final response = await SupabaseService.client
         .from('address_book')
         .select()
@@ -50,14 +62,27 @@ class CheckoutController extends GetxController {
     addresses.value = (response as List)
         .map((e) => AddressModel.fromJson(e as Map<String, dynamic>))
         .toList();
+
     selectedAddress.value =
+      addresses.firstWhereOrNull((a) => a.id == previousSelectedId) ??
         addresses.firstWhereOrNull((a) => a.isDefault) ??
-            addresses.firstOrNull;
+        addresses.firstOrNull;
   }
 
   void selectAddress(AddressModel addr) {
     selectedAddress.value = addr;
-    Navigator.of(Get.context!).pop(); // close address select sheet
+  }
+
+  Future<void> refreshCheckout() async {
+    await AuthController.to.refreshCurrentUser();
+    final user = AuthController.to.currentUser.value;
+    if (user != null) {
+      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true
+          ? user.phoneTwo!
+          : user.phone;
+    }
+    await loadAddresses();
+    await CartController.to.refreshCart();
   }
 
   // ── Promo code ────────────────────────────────────────────────────────────
@@ -67,24 +92,58 @@ class CheckoutController extends GetxController {
     if (code.isEmpty) return;
     promoLoading.value = true;
     try {
-      final response = await SupabaseService.client
+      // ── 1. Check vouchers ────────────────────────────────────────────────
+      final voucherRes = await SupabaseService.client
           .from('vouchers')
           .select()
           .eq('voucherCode', code)
           .eq('isActive', true)
           .maybeSingle();
-      if (response == null) {
-        Get.snackbar('error'.tr, 'invalid_voucher'.tr);
-        discount.value = 0;
+
+      if (voucherRes != null) {
+        final voucher = VoucherModel.fromJson(voucherRes);
+        if (voucher.voucherAmount != null) {
+          discount.value = voucher.voucherAmount!;
+        } else if (voucher.voucherPercentage != null) {
+          discount.value = cartTotal * voucher.voucherPercentage! / 100;
+        }
+        AppSnackbar.show(
+          'success'.tr,
+          'voucher_applied'.tr,
+          type: AppSnackbarType.success,
+        );
         return;
       }
-      final voucher = VoucherModel.fromJson(response);
-      if (voucher.voucherAmount != null) {
-        discount.value = voucher.voucherAmount!;
-      } else if (voucher.voucherPercentage != null) {
-        discount.value = cartTotal * voucher.voucherPercentage! / 100;
+
+      // ── 2. Check promotions ──────────────────────────────────────────────
+      final promoRes = await SupabaseService.client
+          .from('promotions')
+          .select()
+          .eq('promotionCode', code)
+          .or('expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}')
+          .maybeSingle();
+
+      if (promoRes != null) {
+        final promo = PromotionModel.fromJson(
+            Map<String, dynamic>.from(promoRes as Map));
+        if (!promo.isExpired) {
+          discount.value = promo.promotionDiscount.toDouble();
+          AppSnackbar.show(
+            'success'.tr,
+            'voucher_applied'.tr,
+            type: AppSnackbarType.success,
+          );
+          return;
+        }
       }
-      Get.snackbar('success'.tr, 'voucher_applied'.tr);
+
+      // ── 3. Not found ─────────────────────────────────────────────────────
+      AppSnackbar.show(
+        'error'.tr,
+        'invalid_voucher'.tr,
+        type: AppSnackbarType.error,
+      );
+      discount.value = 0;
     } finally {
       promoLoading.value = false;
     }
@@ -95,11 +154,30 @@ class CheckoutController extends GetxController {
   Future<void> placeOrder() async {
     final address = selectedAddress.value;
     final user = AuthController.to.currentUser.value;
+    final phone = phoneCtrl.text.trim();
     if (address == null || user == null) {
-      Get.snackbar('error'.tr, 'select_address'.tr);
+      AppSnackbar.show(
+        'error'.tr,
+        'select_address'.tr,
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
+    if (phone.isEmpty) {
+      AppSnackbar.show(
+        'error'.tr,
+        'phone_required'.tr,
+        type: AppSnackbarType.error,
+      );
       return;
     }
     if (CartController.to.cartItems.isEmpty) return;
+
+    // Build address snapshot
+    final addressSnapshot = [
+      address.address,
+      if (address.landmark.isNotEmpty) address.landmark,
+    ].join(' - ');
 
     placingOrder.value = true;
     try {
@@ -111,6 +189,8 @@ class CheckoutController extends GetxController {
           .insert({
             'userID': user.id,
             'addressID': address.id,
+            'address': addressSnapshot,
+            'phoneNumber': phone,
             if (affiliateId != null) 'affiliateID': affiliateId,
             'totalPrice': finalTotal,
             'totalDiscount': discount.value,
@@ -137,8 +217,17 @@ class CheckoutController extends GetxController {
       await CartController.to.clear();
       GetStorage().remove(AppConstants.kActiveAffiliateId);
 
+      if (Get.isRegistered<HistoryController>()) {
+        await HistoryController.to.fetchOrders();
+      }
+
       Get.offAllNamed(Routes.home);
-      Get.snackbar('order_placed'.tr, 'order_placed_msg'.tr);
+      NavController.to.setIndex(2);
+      AppSnackbar.show(
+        'order_placed'.tr,
+        'order_placed_msg'.tr,
+        type: AppSnackbarType.success,
+      );
     } finally {
       placingOrder.value = false;
     }

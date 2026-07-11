@@ -36,23 +36,28 @@ class SoraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: 'Sora',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: settings.themeMode,
-      translations: AppTranslations(),
-      locale: settings.locale,
-      fallbackLocale: const Locale('en'),
-      supportedLocales: const [Locale('ar'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      initialRoute: AppPages.initial,
-      getPages: AppPages.routes,
-    );
+    return Obx(() {
+      settings.localeCode.value;
+      settings.isDark.value;
+
+      return GetMaterialApp(
+        title: 'Sora',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: settings.themeMode,
+        translations: AppTranslations(),
+        locale: settings.locale,
+        fallbackLocale: const Locale('en'),
+        supportedLocales: const [Locale('ar'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        initialRoute: AppPages.initial,
+        getPages: AppPages.routes,
+      );
+    });
   }
 }

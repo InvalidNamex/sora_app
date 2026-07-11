@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import 'affiliate_controller.dart';
 
@@ -161,9 +162,12 @@ class _ShareLinkCard extends StatelessWidget {
                   tooltip: 'copy'.tr,
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: link));
-                    Get.snackbar('copied'.tr, link,
-                        snackPosition: SnackPosition.bottom,
-                        duration: const Duration(seconds: 2));
+                    AppSnackbar.show(
+                      'copied'.tr,
+                      link,
+                      type: AppSnackbarType.info,
+                      duration: const Duration(seconds: 2),
+                    );
                   },
                 ),
               ],

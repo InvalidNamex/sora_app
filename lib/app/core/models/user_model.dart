@@ -4,6 +4,7 @@ class UserModel {
   final String name;
   final String phone;
   final String? phoneTwo;
+  final String? email;
   final bool isAffiliate;
   final bool isAdmin;
   final String? fcmTokens;
@@ -14,6 +15,7 @@ class UserModel {
     required this.name,
     required this.phone,
     this.phoneTwo,
+    this.email,
     this.isAffiliate = false,
     this.isAdmin = false,
     this.fcmTokens,
@@ -25,6 +27,7 @@ class UserModel {
         name: (json['name'] as String?) ?? '',
         phone: (json['phone'] as String?) ?? '',
         phoneTwo: json['phoneTwo'] as String?,
+        email: json['email'] as String?,
         isAffiliate: (json['isAffiliate'] as bool?) ?? false,
         isAdmin: (json['isAdmin'] as bool?) ?? false,
         fcmTokens: json['fcmTokens'] as String?,
@@ -36,6 +39,7 @@ class UserModel {
         'name': name,
         'phone': phone,
         'phoneTwo': phoneTwo,
+        'email': email,
         'isAffiliate': isAffiliate,
         'isAdmin': isAdmin,
         'fcmTokens': fcmTokens,

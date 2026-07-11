@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../core/models/liked_item_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../../routes/app_pages.dart';
 import '../auth/auth_controller.dart';
 
@@ -29,7 +30,7 @@ class WishlistController extends GetxController {
       final response = await SupabaseService.client
           .from('liked_items')
           .select(
-          'id, itemID, items(id, itemName, item_properties(id, image, price, inStock, size))')
+          'id, itemID, items(id, itemName, itemNameEN, item_properties(id, image, price, inStock, isDefault, size))')
           .eq('userID', userId);
       likedItems.value = (response as List)
           .map((e) => LikedItemModel.fromJson(e as Map<String, dynamic>))
@@ -49,10 +50,10 @@ class WishlistController extends GetxController {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) {
       Get.toNamed(Routes.auth);
-      Get.snackbar(
+      AppSnackbar.show(
         'login_required'.tr,
         'login_required'.tr,
-        snackPosition: SnackPosition.bottom,
+        type: AppSnackbarType.warning,
       );
       return;
     }

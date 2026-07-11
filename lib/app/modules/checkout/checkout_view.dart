@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/address_model.dart';
 import '../../core/utils/responsive.dart';
 import '../../routes/app_pages.dart';
+import '../auth/auth_controller.dart';
 import '../cart/cart_controller.dart';
 import 'checkout_controller.dart';
 
@@ -42,22 +44,29 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _AddressCard(c: c),
-          const SizedBox(height: 16),
-          _PromoCard(c: c),
-          const SizedBox(height: 16),
-          _NotesCard(c: c),
-          const SizedBox(height: 16),
-          _OrderSummaryCard(c: c),
-          const SizedBox(height: 24),
-          _PlaceOrderButton(c: c),
-          const SizedBox(height: 24),
-        ],
+    return RefreshIndicator(
+      color: AppConstants.darkBeige,
+      onRefresh: c.refreshCheckout,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _AddressCard(c: c),
+            const SizedBox(height: 16),
+            _PhoneCard(c: c),
+            const SizedBox(height: 16),
+            _PromoCard(c: c),
+            const SizedBox(height: 16),
+            _NotesCard(c: c),
+            const SizedBox(height: 16),
+            _OrderSummaryCard(c: c),
+            const SizedBox(height: 24),
+            _PlaceOrderButton(c: c),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -79,16 +88,23 @@ class _DesktopLayout extends StatelessWidget {
           children: [
             // Left: form
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _AddressCard(c: c),
-                    const SizedBox(height: 16),
-                    _PromoCard(c: c),
-                    const SizedBox(height: 16),
-                    _NotesCard(c: c),
-                  ],
+              child: RefreshIndicator(
+                color: AppConstants.darkBeige,
+                onRefresh: c.refreshCheckout,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _AddressCard(c: c),
+                      const SizedBox(height: 16),
+                      _PhoneCard(c: c),
+                      const SizedBox(height: 16),
+                      _PromoCard(c: c),
+                      const SizedBox(height: 16),
+                      _NotesCard(c: c),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -112,6 +128,67 @@ class _DesktopLayout extends StatelessWidget {
   }
 }
 
+// ── Phone card ───────────────────────────────────────────────────────────────
+
+class _PhoneCard extends StatelessWidget {
+  const _PhoneCard({required this.c});
+  final CheckoutController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = c.phoneCtrl; // TextEditingController
+    final savedPhones = <String>[
+      AuthController.to.currentUser.value?.phone ?? '',
+      AuthController.to.currentUser.value?.phoneTwo ?? '',
+    ].where((p) => p.isNotEmpty).toSet().toList();
+
+    return _SectionCard(
+      title: 'contact_phone'.tr,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Quick-pick chips when the user has more than one saved phone
+          if (savedPhones.length > 1) ...
+            [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final phone in savedPhones)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: ActionChip(
+                          avatar: const Icon(Icons.phone_outlined, size: 14),
+                          label: Text(phone,
+                              style: const TextStyle(fontSize: 12)),
+                          onPressed: () => c.phoneCtrl.text = phone,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          TextField(
+            controller: user,
+            keyboardType: TextInputType.phone,
+            textDirection: TextDirection.ltr,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d+\-\s()]'))],
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.phone_outlined),
+              hintText: 'phone_hint'.tr,
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Address card ──────────────────────────────────────────────────────────────
 
 class _AddressCard extends StatelessWidget {
@@ -124,34 +201,79 @@ class _AddressCard extends StatelessWidget {
       title: 'delivery_address'.tr,
       child: Obx(() {
         final addr = c.selectedAddress.value;
-        return Row(
+        final addresses = c.addresses.toList(growable: false);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.location_on_outlined, color: AppConstants.darkBeige),
-            const SizedBox(width: 12),
-            Expanded(
-              child: addr == null
-                  ? Text('no_addresses'.tr,
-                      style: TextStyle(color: AppConstants.mediumBeige))
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(addr.address,
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        if (addr.landmark.isNotEmpty)
-                          Text(addr.landmark,
-                              style: TextStyle(
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    color: AppConstants.darkBeige),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: addr == null
+                      ? Text(
+                          'no_addresses'.tr,
+                          style:
+                              const TextStyle(color: AppConstants.mediumBeige),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              addr.address,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            if (addr.landmark.isNotEmpty)
+                              Text(
+                                addr.landmark,
+                                style: TextStyle(
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurface
                                       .withValues(alpha: 0.6),
-                                  fontSize: 12)),
-                      ],
-                    ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+                TextButton(
+                  onPressed: () => _showAddressSheet(context),
+                  child: Text('change'.tr),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => _showAddressSheet(context),
-              child: Text('change'.tr),
-            ),
+            if (addresses.length > 1) ...[
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final a in addresses)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: ChoiceChip(
+                          label: Text(
+                            a.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          selected: a.id == addr?.id,
+                          onSelected: (_) => c.selectAddress(a),
+                          selectedColor:
+                              AppConstants.mediumBeige.withValues(alpha: 0.35),
+                          side: BorderSide(
+                            color:
+                                AppConstants.mediumBeige.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       }),
@@ -160,7 +282,11 @@ class _AddressCard extends StatelessWidget {
 
   void _showAddressSheet(BuildContext context) {
     Get.bottomSheet(
-      _AddressSelectSheet(addresses: c.addresses, onSelect: c.selectAddress),
+      _AddressSelectSheet(
+        addresses: c.addresses,
+        selectedAddressId: c.selectedAddress.value?.id,
+        onSelect: c.selectAddress,
+      ),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
     );
@@ -169,8 +295,13 @@ class _AddressCard extends StatelessWidget {
 
 class _AddressSelectSheet extends StatelessWidget {
   const _AddressSelectSheet(
-      {required this.addresses, required this.onSelect});
+      {
+      required this.addresses,
+      required this.selectedAddressId,
+      required this.onSelect,
+    });
   final List<AddressModel> addresses;
+  final int? selectedAddressId;
   final ValueChanged<AddressModel> onSelect;
 
   @override
@@ -209,11 +340,26 @@ class _AddressSelectSheet extends StatelessWidget {
                           : Icons.location_on_outlined,
                       color: AppConstants.darkBeige,
                     ),
+                    trailing: addr.id == selectedAddressId
+                        ? const Icon(
+                            Icons.check_circle,
+                            color: AppConstants.darkBeige,
+                          )
+                        : null,
+                    selected: addr.id == selectedAddressId,
+                    selectedTileColor:
+                        AppConstants.mediumBeige.withValues(alpha: 0.12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     title: Text(addr.address),
                     subtitle: addr.landmark.isNotEmpty
                         ? Text(addr.landmark)
                         : null,
-                    onTap: () => onSelect(addr),
+                    onTap: () {
+                      onSelect(addr);
+                      Navigator.of(context).pop();
+                    },
                   );
                 },
               ),
@@ -222,9 +368,10 @@ class _AddressSelectSheet extends StatelessWidget {
           OutlinedButton.icon(
             icon: const Icon(Icons.add),
             label: Text('add_address'.tr),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop(); // Close the bottom sheet first
-              Get.toNamed(Routes.addressBook);
+              await Get.toNamed(Routes.addressBook);
+              await CheckoutController.to.loadAddresses();
             },
           ),
         ],

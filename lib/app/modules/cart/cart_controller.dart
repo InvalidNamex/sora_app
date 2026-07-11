@@ -61,7 +61,7 @@ class CartController extends GetxController {
     try {
       final response = await SupabaseService.client
           .from('cart')
-          .select('id, quantity, item_properties!propertyID(id, size, image, price, items(itemName))')
+          .select('id, itemID, quantity, item_properties!propertyID(id, itemID, size, image, price), items(itemName, itemNameEN, item_properties(id, image, price, isDefault, inStock))')
           .eq('userID', userId);
       cartItems.value = (response as List)
           .map((e) => CartItemModel.fromSupabaseJson(e as Map<String, dynamic>))
@@ -74,37 +74,58 @@ class CartController extends GetxController {
     }
   }
 
+  Future<void> refreshCart() async {
+    if (AuthController.to.isLoggedIn) {
+      await _loadFromSupabase();
+    } else {
+      _loadFromLocalStorage();
+    }
+  }
+
   // ── Add ───────────────────────────────────────────────────────────────────
 
-  Future<void> addItem(ItemPropertyModel prop, String itemName, int quantity) async {
+  Future<void> addItem(
+    ItemPropertyModel prop,
+    String itemName,
+    int quantity, {
+    ItemPropertyModel? displayProperty,
+  }) async {
     if (AuthController.to.isLoggedIn) {
-      await _addToSupabase(prop.id, quantity);
+      await _addToSupabase(prop.id, prop.itemId, quantity);
     } else {
-      _addToLocalStorage(prop, itemName, quantity);
+      _addToLocalStorage(prop, itemName, quantity, displayProperty: displayProperty);
     }
   }
 
   void _addToLocalStorage(
-      ItemPropertyModel prop, String itemName, int quantity) {
+    ItemPropertyModel prop,
+    String itemName,
+    int quantity, {
+    ItemPropertyModel? displayProperty,
+  }) {
     final existing =
         cartItems.firstWhereOrNull((e) => e.itemPropertyId == prop.id);
     if (existing != null) {
       existing.quantity += quantity;
     } else {
+      final display = displayProperty ?? prop;
       cartItems.add(CartItemModel(
         cartId: 0,
         itemPropertyId: prop.id,
+        itemId: prop.itemId,
         itemName: itemName,
         image: prop.image,
+        displayImage: display.image,
         sizeMl: prop.sizeMl,
         price: prop.price,
+        displayPrice: display.price,
         quantity: quantity,
       ));
     }
     _persistLocal();
   }
 
-  Future<void> _addToSupabase(int propertyId, int quantity) async {
+  Future<void> _addToSupabase(int propertyId, int itemId, int quantity) async {
     final userId = AuthController.to.currentUser.value!.id;
     final client = SupabaseService.client;
 
@@ -125,6 +146,7 @@ class CartController extends GetxController {
       await client.from('cart').insert({
         'userID': userId,
         'propertyID': propertyId,
+        'itemID': itemId,
         'quantity': quantity,
       });
     }

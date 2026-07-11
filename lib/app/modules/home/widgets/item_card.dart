@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/item_property_model.dart';
+import '../../../global_widgets/network_image_with_placeholder.dart';
 import '../../wishlist/wishlist_controller.dart';
 import '../home_controller.dart';
 import '../../../routes/app_pages.dart';
@@ -249,10 +250,9 @@ class _CardBody extends StatelessWidget {
               child: Hero(
                 tag: heroTag,
                 child: prop != null && prop!.image.isNotEmpty
-                    ? Image.network(
-                        prop!.image,
+                    ? NetworkImageWithPlaceholder(
+                        imageUrl: prop!.image,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) => _PlaceholderImage(),
                       )
                     : _PlaceholderImage(),
               ),

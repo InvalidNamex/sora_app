@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/responsive.dart';
+import '../../global_widgets/network_image_with_placeholder.dart';
 import '../../routes/app_pages.dart';
 import 'wishlist_controller.dart';
 
@@ -85,14 +86,16 @@ class _WishlistCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: liked.primaryImage != null
-                        ? Image.network(
-                            liked.primaryImage!,
+                        ? NetworkImageWithPlaceholder(
+                            imageUrl: liked.primaryImage!,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stack) =>
-                                Container(color: AppConstants.lightBeige),
                           )
-                        : Container(color: AppConstants.lightBeige),
+                        : Image.asset(
+                            'assets/images/place_holder.png',
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
@@ -131,7 +134,7 @@ class _WishlistCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.favorite,
-                    color: Colors.redAccent, size: 20),
+                    color: Colors.brown, size: 20),
               ),
             ),
           ),

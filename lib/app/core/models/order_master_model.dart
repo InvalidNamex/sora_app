@@ -10,6 +10,10 @@ class OrderMasterModel {
   final String? notes;
   final String orderStatus;
   final DateTime createdAt;
+  /// Snapshot of the delivery address at the time of ordering.
+  final String address;
+  /// Contact phone number supplied by the customer at checkout.
+  final String phoneNumber;
 
   const OrderMasterModel({
     required this.id,
@@ -21,6 +25,8 @@ class OrderMasterModel {
     this.notes,
     required this.orderStatus,
     required this.createdAt,
+    this.address = '',
+    this.phoneNumber = '',
   });
 
   factory OrderMasterModel.fromJson(Map<String, dynamic> json) =>
@@ -34,6 +40,8 @@ class OrderMasterModel {
         notes: json['notes'] as String?,
         orderStatus: (json['orderStatus'] as String?) ?? 'Pending',
         createdAt: DateTime.parse(json['created_at'] as String),
+        address: (json['address'] as String?) ?? '',
+        phoneNumber: (json['phoneNumber'] as String?) ?? '',
       );
 
   static Color statusColor(String status) {

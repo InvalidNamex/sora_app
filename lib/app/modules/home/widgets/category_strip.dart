@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/category_model.dart';
 import '../../../core/models/sub_category_model.dart';
+import '../../../global_widgets/network_image_with_placeholder.dart';
 
 /// Horizontal scrolling category chips.
 /// If [subCategories] is non-empty it renders a second row of sub-category chips.
@@ -210,19 +211,10 @@ class _CategoryTile extends StatelessWidget {
                 child: SizedBox(
                   width: 56,
                   height: 56,
-                  child: (imageUrl != null && imageUrl!.isNotEmpty)
-                      ? Image.network(
-                          imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                            AppConstants.placeholderPath,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Image.asset(
-                          AppConstants.placeholderPath,
-                          fit: BoxFit.cover,
-                        ),
+                  child: NetworkImageWithPlaceholder(
+                    imageUrl: imageUrl ?? '',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(height: 6),

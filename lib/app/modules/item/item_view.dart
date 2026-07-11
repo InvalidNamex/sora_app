@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
+import '../../global_widgets/network_image_with_placeholder.dart';
 import '../cart/cart_controller.dart';
 import 'item_controller.dart';
 
@@ -22,62 +24,32 @@ class ItemView extends GetView<ItemController> {
         elevation: 0,
       ),
       extendBodyBehindAppBar: true,
-      floatingActionButton: Obx(() {
-        final count = CartController.to.totalItems;
+      bottomNavigationBar: Obx(() {
+        if (controller.isLoading.value || controller.hasError.value || controller.item.value == null) {
+          return const SizedBox.shrink();
+        }
+        
+        // Hide bottom sheet style add to cart on desktop since it will exist in the right column
+        if (Responsive.isDesktop(context)) {
+          return const SizedBox.shrink();
+        }
+
         final pulse = controller.cartFabPulse.value;
         final prop = controller.selectedProperty;
         final item = controller.item.value;
+        final count = CartController.to.totalItems;
         final inStock = prop?.inStock ?? false;
-        return AnimatedScale(
-          scale: pulse ? 1.14 : 1.0,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutBack,
-          child: FloatingActionButton.extended(
-            backgroundColor: AppConstants.darkBeige,
-            foregroundColor: Colors.white,
-            onPressed: !inStock || prop == null || item == null
-                ? null
-                : () async {
-                    HapticFeedback.mediumImpact();
-                    await CartController.to.addItem(prop, item.itemName, 1);
-                    await controller.pulseCartFab();
-                    Get.snackbar(
-                      'added_to_cart'.tr,
-                      '${item.itemName} · ${prop.sizeMl} ml',
-                      duration: const Duration(seconds: 2),
-                    );
-                  },
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.shopping_bag_outlined),
-                if (count > 0)
-                  PositionedDirectional(
-                    top: -7,
-                    end: -9,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            label: Text(inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr),
+
+        return ResponsiveLayout(
+          mobile: _AddToCartBottomBar(
+            pulse: pulse,
+            inStock: inStock,
+            prop: prop,
+            item: item,
+            count: count,
+            controller: controller,
           ),
+          desktop: const SizedBox.shrink(),
         );
       }),
       body: Obx(() {
@@ -128,13 +100,18 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HeroImage(controller: controller),
-          _ItemDetails(controller: controller),
-        ],
+    return RefreshIndicator(
+      color: AppConstants.darkBeige,
+      onRefresh: controller.refreshItem,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _HeroImage(controller: controller),
+            _ItemDetails(controller: controller),
+          ],
+        ),
       ),
     );
   }
@@ -163,9 +140,31 @@ class _DesktopLayout extends StatelessWidget {
             // Right: details (60% width)
             Expanded(
               flex: 6,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 80, right: 32, bottom: 32),
-                child: _ItemDetails(controller: controller),
+              child: RefreshIndicator(
+                color: AppConstants.darkBeige,
+                onRefresh: controller.refreshItem,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 80, right: 32, bottom: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ItemDetails(controller: controller),
+                      const SizedBox(height: 32),
+                      Obx(() {
+                        final count = CartController.to.totalItems;
+                        return _AddToCartDesktopBtn(
+                          pulse: controller.cartFabPulse.value,
+                          inStock: controller.selectedProperty?.inStock ?? false,
+                          prop: controller.selectedProperty,
+                          item: controller.item.value,
+                          count: count,
+                          controller: controller,
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -199,12 +198,9 @@ class _HeroImage extends StatelessWidget {
                     bottomRight: Radius.circular(24),
                   ),
             child: imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
+                ? NetworkImageWithPlaceholder(
+                    imageUrl: imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      color: AppConstants.lightBeige,
-                    ),
                   )
                 : Image.asset('assets/images/place_holder.png', fit: BoxFit.cover),
           ),
@@ -347,3 +343,211 @@ class _VariantChip extends StatelessWidget {
     );
   }
 }
+
+class _AddToCartBottomBar extends StatelessWidget {
+  const _AddToCartBottomBar({
+    required this.pulse,
+    required this.inStock,
+    required this.prop,
+    required this.item,
+    required this.count,
+    required this.controller,
+  });
+
+  final bool pulse;
+  final bool inStock;
+  final dynamic prop;
+  final dynamic item;
+  final int count;
+  final ItemController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16) +
+          MediaQuery.paddingOf(context).copyWith(top: 0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: AnimatedScale(
+          scale: pulse ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutBack,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.darkBeige,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              disabledBackgroundColor: Colors.grey.shade400,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: !inStock || prop == null || item == null
+                ? null
+                : () async {
+                    HapticFeedback.mediumImpact();
+                    await CartController.to.addItem(
+                      prop,
+                      item.itemName,
+                      1,
+                      displayProperty: controller.defaultProperty,
+                    );
+                    await controller.pulseCartFab();
+                    AppSnackbar.show(
+                      'added_to_cart'.tr,
+                      '${item.itemName} · ${prop.sizeMl} ml',
+                      type: AppSnackbarType.success,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined),
+                    if (count > 0)
+                      PositionedDirectional(
+                        top: -7,
+                        end: -9,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddToCartDesktopBtn extends StatelessWidget {
+  const _AddToCartDesktopBtn({
+    required this.pulse,
+    required this.inStock,
+    required this.prop,
+    required this.item,
+    required this.count,
+    required this.controller,
+  });
+
+  final bool pulse;
+  final bool inStock;
+  final dynamic prop;
+  final dynamic item;
+  final int count;
+  final ItemController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: pulse ? 1.05 : 1.0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutBack,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppConstants.darkBeige,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
+          disabledBackgroundColor: Colors.grey.shade400,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: !inStock || prop == null || item == null
+            ? null
+            : () async {
+                HapticFeedback.mediumImpact();
+                await CartController.to.addItem(
+                  prop,
+                  item.itemName,
+                  1,
+                  displayProperty: controller.defaultProperty,
+                );
+                await controller.pulseCartFab();
+                AppSnackbar.show(
+                  'added_to_cart'.tr,
+                  '${item.itemName} · ${prop.sizeMl} ml',
+                  type: AppSnackbarType.success,
+                  duration: const Duration(seconds: 2),
+                );
+              },
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(Icons.shopping_bag_outlined),
+            if (count > 0)
+              PositionedDirectional(
+                top: -7,
+                end: -9,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade600,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        label: Text(
+          inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

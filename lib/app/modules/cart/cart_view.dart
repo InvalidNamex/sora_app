@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/responsive.dart';
 import '../auth/auth_controller.dart';
 import '../navigation/nav_controller.dart';
+import '../../global_widgets/network_image_with_placeholder.dart';
 import 'cart_controller.dart';
 import '../../routes/app_pages.dart';
 
@@ -29,13 +30,15 @@ class CartView extends GetView<CartController> {
         automaticallyImplyLeading: false,
       ),
       body: Obx(() {
-        if (controller.cartItems.isEmpty) {
-          return _EmptyCart();
-        }
-
-        return ResponsiveLayout(
-          mobile: _MobileCartLayout(controller: controller),
-          desktop: _DesktopCartLayout(controller: controller),
+        return RefreshIndicator(
+          color: AppConstants.darkBeige,
+          onRefresh: controller.refreshCart,
+          child: controller.cartItems.isEmpty
+              ? _EmptyCart()
+              : ResponsiveLayout(
+                  mobile: _MobileCartLayout(controller: controller),
+                  desktop: _DesktopCartLayout(controller: controller),
+                ),
         );
       }),
     );
@@ -47,22 +50,29 @@ class CartView extends GetView<CartController> {
 class _EmptyCart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.shopping_cart_outlined,
-              size: 72, color: AppConstants.mediumBeige),
-          const SizedBox(height: 16),
-          Text('cart_empty'.tr,
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Get.offAllNamed(Routes.home),
-            child: Text('keep_shopping'.tr),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 120),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.shopping_cart_outlined,
+                  size: 72, color: AppConstants.mediumBeige),
+              const SizedBox(height: 16),
+              Text('cart_empty'.tr,
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => NavController.to.setIndex(0),
+                child: Text('keep_shopping'.tr),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -136,15 +146,19 @@ class _CartItemList extends StatelessWidget {
               const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-                    child: item.image.isNotEmpty
-                ? Image.network(item.image,
-                    width: 64, height: 64, fit: BoxFit.cover)
-                : Container(
-                    width: 64,
-                    height: 64,
-                    color: AppConstants.lightBeige,
-                    child: const Icon(Icons.image_outlined,
-                        color: AppConstants.mediumBeige)),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: item.displayImage.isNotEmpty
+                  ? NetworkImageWithPlaceholder(
+                      imageUrl: item.displayImage,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      color: AppConstants.lightBeige,
+                      child: Image.asset('assets/images/place_holder.png'),
+                    ),
+            ),
           ),
           title: Text(item.itemName,
               style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -154,7 +168,7 @@ class _CartItemList extends StatelessWidget {
               Text('${item.sizeMl} ml',
                   style: TextStyle(color: AppConstants.mediumBeige)),
               Text(
-                '${AppConstants.currency} ${item.price.toStringAsFixed(2)}',
+                '${AppConstants.currency} ${item.displayPrice.toStringAsFixed(2)}',
                 style: TextStyle(
                     color: AppConstants.darkBeige,
                     fontWeight: FontWeight.bold),

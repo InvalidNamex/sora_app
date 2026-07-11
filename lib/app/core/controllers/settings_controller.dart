@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import '../constants/app_constants.dart';
+import '../utils/locale_utils.dart';
 
 /// Handles theme mode and locale persistence via get_storage.
 class SettingsController extends GetxController {
@@ -23,11 +24,31 @@ class SettingsController extends GetxController {
   Locale get locale => Locale(localeCode.value);
 
   // ── Init helpers ─────────────────────────────────────────────────
-  bool _loadIsDark() =>
-      _box.read<String>(AppConstants.kThemeMode) == 'dark';
+  bool _loadIsDark() {
+    final storedMode = _box.read<String>(AppConstants.kThemeMode);
+    if (storedMode == 'dark') return true;
+    if (storedMode == 'light') return false;
 
-  String _loadLocaleCode() =>
-      _box.read<String>(AppConstants.kLocale) ?? 'ar';
+    return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+        Brightness.dark;
+  }
+
+  String _loadLocaleCode() {
+    final storedLocale =
+        normalizeAppLocaleCode(_box.read<String>(AppConstants.kLocale));
+    if (storedLocale != null) return storedLocale;
+
+    return _preferredLocaleCode();
+  }
+
+  String _preferredLocaleCode() {
+    for (final locale in WidgetsBinding.instance.platformDispatcher.locales) {
+      final code = normalizeAppLocaleCode(locale.languageCode);
+      if (code != null) return code;
+    }
+
+    return 'en';
+  }
 
   // ── Actions ──────────────────────────────────────────────────────
   void toggleTheme() {
@@ -37,8 +58,9 @@ class SettingsController extends GetxController {
   }
 
   void changeLocale(String code) {
-    localeCode.value = code;
-    Get.updateLocale(Locale(code));
-    _box.write(AppConstants.kLocale, code);
+    final normalized = normalizeAppLocaleCode(code) ?? 'en';
+    localeCode.value = normalized;
+    Get.updateLocale(Locale(normalized));
+    _box.write(AppConstants.kLocale, normalized);
   }
 }

@@ -7,11 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
-
 import '../../core/constants/app_constants.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../navigation/nav_controller.dart';
 import '../../routes/app_pages.dart';
 
@@ -27,7 +26,9 @@ class AuthController extends GetxController {
   static AuthController get to => Get.find();
 
   final _auth = fb.FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn();
+  final _googleSignIn = GoogleSignIn(
+    serverClientId: AppConstants.googleWebClientId,
+  );
   final _storage = GetStorage();
 
   final currentUser = Rxn<UserModel>();
@@ -67,6 +68,24 @@ class AuthController extends GetxController {
   }
 
   bool get isLoggedIn => currentUser.value != null;
+
+  Future<void> refreshCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final result = await SupabaseService.client
+          .from('users')
+          .select()
+          .eq('uid', user.uid)
+          .maybeSingle();
+      if (result != null) {
+        currentUser.value = UserModel.fromJson(result);
+      }
+    } catch (e) {
+      debugPrint('[AuthController] refreshCurrentUser error: $e');
+    }
+  }
 
   @override
   void onClose() {
@@ -113,23 +132,23 @@ class AuthController extends GetxController {
       if (googleUser == null) return; // user cancelled
 
       final auth = await googleUser.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        throw Exception('Google did not return an ID token.');
+      }
       final credential = fb.GoogleAuthProvider.credential(
-        idToken: auth.idToken,
+        idToken: idToken,
         accessToken: auth.accessToken,
       );
       final result = await _auth.signInWithCredential(credential);
-
-      // Authenticate Supabase with the same Google token so RLS works.
-      await SupabaseService.client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: auth.idToken!,
-        accessToken: auth.accessToken,
-      );
-
       await _postAuthSetup(result.user!);
     } catch (e) {
       debugPrint('[AuthController] Google sign-in error: $e');
-      Get.snackbar('error'.tr, e.toString());
+      AppSnackbar.show(
+        'error'.tr,
+        e.toString(),
+        type: AppSnackbarType.error,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -161,12 +180,10 @@ class AuthController extends GetxController {
         },
         verificationFailed: (e) {
           otpStatusMessage.value = _phoneErrorMessage(e);
-          Get.snackbar(
+          AppSnackbar.show(
             'error'.tr,
             _phoneErrorMessage(e),
-            snackPosition: SnackPosition.bottom,
-            backgroundColor: Colors.red.shade800,
-            colorText: Colors.white,
+            type: AppSnackbarType.error,
             duration: const Duration(seconds: 6),
           );
         },
@@ -183,12 +200,10 @@ class AuthController extends GetxController {
           otpTimedOut.value = true;
           otpStatusMessage.value =
               'Auto-detection timed out. Please enter the code manually or resend.';
-          Get.snackbar(
+          AppSnackbar.show(
             'Verification'.tr,
             otpStatusMessage.value,
-            snackPosition: SnackPosition.bottom,
-            backgroundColor: Colors.orange.shade800,
-            colorText: Colors.white,
+            type: AppSnackbarType.warning,
             duration: const Duration(seconds: 5),
           );
         },
@@ -244,21 +259,19 @@ class AuthController extends GetxController {
       await _postAuthSetup(result.user!);
     } on fb.FirebaseAuthException catch (e) {
       resetOtpState();
-      Get.snackbar(
+      AppSnackbar.show(
         'error'.tr,
         _otpErrorMessage(e),
-        snackPosition: SnackPosition.bottom,
-        backgroundColor: Colors.red.shade800,
-        colorText: Colors.white,
+        type: AppSnackbarType.error,
         duration: const Duration(seconds: 5),
       );
     } catch (e) {
       debugPrint('[AuthController] Phone OTP verify error: $e');
       resetOtpState();
-      Get.snackbar(
+      AppSnackbar.show(
         'error'.tr,
         'Verification failed. Please try again.',
-        snackPosition: SnackPosition.bottom,
+        type: AppSnackbarType.error,
       );
     } finally {
       isLoading.value = false;
@@ -300,6 +313,7 @@ class AuthController extends GetxController {
             'uid': user.uid,
             'name': user.displayName ?? '',
             'phone': user.phoneNumber ?? _pendingPhone ?? '',
+            if (user.email != null) 'email': user.email,
           },
           onConflict: 'uid',
           ignoreDuplicates: false,
@@ -346,6 +360,7 @@ class AuthController extends GetxController {
     final client = SupabaseService.client;
     for (final item in rawList.cast<Map<String, dynamic>>()) {
       final itemPropertyId = item['itemPropertyId'] as int;
+      final itemId = (item['itemId'] as num?)?.toInt() ?? itemPropertyId;
       final quantity = item['quantity'] as int;
 
       final existing = await client
@@ -365,11 +380,41 @@ class AuthController extends GetxController {
         await client.from('cart').insert({
           'userID': userId,
           'propertyID': itemPropertyId,
+          'itemID': itemId,
           'quantity': quantity,
         });
       }
     }
     await _storage.remove(AppConstants.kGuestCart);
+  }
+
+  // ── Phone number management ───────────────────────────────────────────────
+
+  /// Updates [phone] and/or [phoneTwo] in Supabase and refreshes [currentUser].
+  Future<void> updatePhoneNumbers({String? phone, String? phoneTwo}) async {
+    final user = currentUser.value;
+    if (user == null) return;
+    try {
+      final payload = <String, dynamic>{};
+      if (phone != null) payload['phone'] = phone;
+      // Allow explicit empty string to clear phoneTwo
+      payload['phoneTwo'] = (phoneTwo?.isEmpty ?? true) ? null : phoneTwo;
+
+      final result = await SupabaseService.client
+          .from('users')
+          .update(payload)
+          .eq('id', user.id)
+          .select()
+          .single();
+      currentUser.value = UserModel.fromJson(result);
+    } catch (e) {
+      debugPrint('[AuthController] updatePhoneNumbers error: $e');
+      AppSnackbar.show(
+        'error'.tr,
+        e.toString(),
+        type: AppSnackbarType.error,
+      );
+    }
   }
 
   // ── Sign-out ──────────────────────────────────────────────────────────────
@@ -390,7 +435,11 @@ class AuthController extends GetxController {
       Get.offAllNamed(Routes.home);
     } catch (e) {
       debugPrint('[AuthController] Sign-out error: $e');
-      Get.snackbar('error'.tr, e.toString());
+      AppSnackbar.show(
+        'error'.tr,
+        e.toString(),
+        type: AppSnackbarType.error,
+      );
     } finally {
       isLoading.value = false;
     }

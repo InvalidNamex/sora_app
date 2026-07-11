@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/order_master_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../auth/auth_controller.dart';
 
 class AffiliateController extends GetxController {
@@ -113,8 +114,11 @@ class AffiliateController extends GetxController {
         'amount': pendingEarnings.value,
         'status': 'Pending',
       });
-      Get.snackbar('success'.tr, 'payout_requested'.tr,
-          snackPosition: SnackPosition.bottom);
+      AppSnackbar.show(
+        'success'.tr,
+        'payout_requested'.tr,
+        type: AppSnackbarType.success,
+      );
     } finally {
       isSubmitting.value = false;
     }

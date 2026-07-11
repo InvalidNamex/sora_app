@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import '../navigation/nav_controller.dart';
 
@@ -24,39 +25,46 @@ class ContactView extends StatelessWidget {
               ),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.headset_mic_outlined,
-                    size: 64, color: AppConstants.darkBeige),
-                const SizedBox(height: 16),
-                Text(
-                  'contact_us'.tr,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+      body: RefreshIndicator(
+        color: AppConstants.darkBeige,
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.headset_mic_outlined,
+                        size: 64, color: AppConstants.darkBeige),
+                    const SizedBox(height: 16),
+                    Text(
+                      'contact_us'.tr,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 32),
+                    _ContactTile(
+                      icon: Icons.email_outlined,
+                      label: AppConstants.supportEmail,
+                      onTap: () => _launch(
+                          'mailto:${AppConstants.supportEmail}'),
+                    ),
+                    const SizedBox(height: 12),
+                    _ContactTile(
+                      icon: Icons.phone_outlined,
+                      label: AppConstants.supportPhone,
+                      onTap: () => _launch(
+                          'tel:${AppConstants.supportPhone}'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 32),
-                _ContactTile(
-                  icon: Icons.email_outlined,
-                  label: AppConstants.supportEmail,
-                  onTap: () => _launch(
-                      'mailto:${AppConstants.supportEmail}'),
-                ),
-                const SizedBox(height: 12),
-                _ContactTile(
-                  icon: Icons.phone_outlined,
-                  label: AppConstants.supportPhone,
-                  onTap: () => _launch(
-                      'tel:${AppConstants.supportPhone}'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -64,10 +72,16 @@ class ContactView extends StatelessWidget {
     );
   }
 
+  Future<void> _refresh() async {}
+
   Future<void> _launch(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
-      Get.snackbar('error'.tr, 'could_not_open'.tr);
+      AppSnackbar.show(
+        'error'.tr,
+        'could_not_open'.tr,
+        type: AppSnackbarType.error,
+      );
     }
   }
 }

@@ -4,9 +4,12 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/banner_model.dart';
+import '../../core/models/promotion_model.dart';
+import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import '../../modules/cart/cart_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
+import '../../global_widgets/network_image_with_placeholder.dart';
 import '../../routes/app_pages.dart';
 import 'home_controller.dart';
 import 'widgets/banner_carousel.dart';
@@ -58,13 +61,9 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
               width: 52,
               height: 52,
               child: prop != null && prop.image.isNotEmpty
-                  ? Image.network(
-                      prop.image,
+                  ? NetworkImageWithPlaceholder(
+                      imageUrl: prop.image,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Image.asset(
-                        AppConstants.placeholderPath,
-                        fit: BoxFit.cover,
-                      ),
                     )
                   : Image.asset(
                       AppConstants.placeholderPath,
@@ -235,9 +234,30 @@ class HomeView extends GetView<HomeController> {
             );
           }),
 
-          // ── Exclusive Promo banner ─────────────────────────────────────────
-          const SliverToBoxAdapter(
-            child: _PromoBanner(),
+          // ── Exclusive Promo banners ────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Obx(() {
+              final promos = controller.activePromotions
+                  .where((p) => !p.isExpired)
+                  .toList();
+              if (promos.isEmpty) return const SizedBox.shrink();
+              if (promos.length == 1) {
+                return _PromoBanner(promotion: promos.first);
+              }
+              return SizedBox(
+                height: 148,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: promos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, i) => SizedBox(
+                    width: 280,
+                    child: _PromoBanner(promotion: promos[i], compact: true),
+                  ),
+                ),
+              );
+            }),
           ),
 
           // ── Category & sub-category strip ──────────────────────────────────
@@ -359,13 +379,9 @@ class _TopHeroSection extends StatelessWidget {
                                 width: 78,
                                 height: double.infinity,
                                 child: img.isNotEmpty
-                                    ? Image.network(
-                                        img,
+                                    ? NetworkImageWithPlaceholder(
+                                        imageUrl: img,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Image.asset(
-                                          AppConstants.placeholderPath,
-                                          fit: BoxFit.cover,
-                                        ),
                                       )
                                     : Image.asset(
                                         AppConstants.placeholderPath,
@@ -456,18 +472,24 @@ class _CollapsingHeroDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _PromoBanner extends StatelessWidget {
-  const _PromoBanner();
+  const _PromoBanner({required this.promotion, this.compact = false});
+
+  final PromotionModel promotion;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      margin: EdgeInsets.symmetric(
+        horizontal: compact ? 0 : 16,
+        vertical: compact ? 4 : 12,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: compact ? 10 : 18,
+      ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [AppConstants.darkBeige, AppConstants.mediumBeige],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -482,10 +504,12 @@ class _PromoBanner extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'exclusive_offer'.tr,
@@ -498,11 +522,20 @@ class _PromoBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'promo_discount_text'.tr,
+                  promotion.localizedText,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppConstants.currency} ${promotion.promotionDiscount} ${'discount'.tr}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -515,11 +548,21 @@ class _PromoBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white30),
             ),
-            child: Row(
+            child:                 GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: promotion.promotionCode));
+                    AppSnackbar.show(
+                      'copied'.tr,
+                      promotion.promotionCode,
+                      type: AppSnackbarType.info,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                  child:Row(
               children: [
-                const Text(
-                  'SORA20',
-                  style: TextStyle(
+                Text(
+                  promotion.promotionCode,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -527,26 +570,14 @@ class _PromoBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    Clipboard.setData(const ClipboardData(text: 'SORA20'));
-                    Get.snackbar(
-                      'copied'.tr,
-                      'SORA20',
-                      snackPosition: SnackPosition.bottom,
-                      backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
-                      colorText: theme.colorScheme.onSurface,
-                      duration: const Duration(seconds: 2),
-                    );
-                  },
-                  child: const Icon(
+                const Icon(
                     Icons.copy,
                     color: Colors.white,
                     size: 14,
                   ),
-                ),
+                
               ],
-            ),
+            ),),
           ),
         ],
       ),

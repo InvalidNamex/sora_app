@@ -13,4 +13,5 @@ abstract class Routes {
   static const adminOrders = '/admin/orders';
   static const adminAffiliates = '/admin/affiliates';
   static const affiliateDashboard = '/affiliate';
+  static const locationPicker = '/location-picker';
 }

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: ^3.11.1
@@ -69,6 +69,10 @@ dependencies:
   # Date/number formatting
   intl: ^0.20.2
 
+  # Cross-platform map (OpenStreetMap, no API key needed)
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -79,13 +83,16 @@ dev_dependencies:
 flutter_native_splash:
   color: "#F1F0E9"
   image: assets/images/logoWithBG.png
-  color_dark: "#1C1B1A"
+  android_gravity: center
+  ios_content_mode: scaleAspectFit
+  web_image_mode: contain
+  color_dark: "#F1F0E9"
   image_dark: assets/images/logoWithBG.png
   android_12:
     image: assets/images/logoWithBG.png
     color: "#F1F0E9"
     image_dark: assets/images/logoWithBG.png
-    color_dark: "#1C1B1A"
+    color_dark: "#F1F0E9"
 
 flutter_launcher_icons:
   android: true
@@ -116,6 +123,7 @@ flutter:
   assets:
     - assets/images/
     - .env
+    - shorebird.yaml
 
   fonts:
     - family: ElMessiri

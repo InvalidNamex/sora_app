@@ -51,9 +51,13 @@ class OrderDetailView extends GetView<OrderDetailController> {
         final dateStr = DateFormat.yMMMd().add_Hm().format(master.createdAt);
         final statusColor = OrderMasterModel.statusColor(master.orderStatus);
 
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
+        return RefreshIndicator(
+          color: AppConstants.darkBeige,
+          onRefresh: controller.fetchDetails,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            children: [
             // Status & Date Header card
             Container(
               padding: const EdgeInsets.all(20),
@@ -137,11 +141,11 @@ class OrderDetailView extends GetView<OrderDetailController> {
                   ),
                 ],
               ),
-              child: ListView.separated(
+                child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: controller.details.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final d = controller.details[index];
                   return ListTile(
@@ -257,8 +261,11 @@ class OrderDetailView extends GetView<OrderDetailController> {
                   style: const TextStyle(fontSize: 14),
                 ),
               ),
+                             const SizedBox(height: 24),
+
             ],
-          ],
+            ],
+          ),
         );
       }),
     );

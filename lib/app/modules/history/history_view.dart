@@ -30,59 +30,107 @@ class HistoryView extends GetView<HistoryController> {
         automaticallyImplyLeading: false,
       ),
       body: Obx(() {
-        // Not logged in
-        if (!AuthController.to.isLoggedIn) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_outline,
-                    size: 56, color: AppConstants.mediumBeige),
-                const SizedBox(height: 16),
-                Text('login_to_see_orders'.tr),
-              ],
-            ),
-          );
-        }
+        Widget child;
 
-        if (controller.isLoading.value) {
-          return const Center(
+        if (!AuthController.to.isLoggedIn) {
+          child = const _HistoryEmptyState(
+            icon: Icons.lock_outline,
+            message: 'login_to_see_orders',
+          );
+        } else if (controller.isLoading.value) {
+          child = const Center(
             child: CircularProgressIndicator(color: AppConstants.darkBeige),
           );
-        }
-
-        if (controller.orders.isEmpty) {
-          return Center(
-            child: controller.hasError.value
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.wifi_off_outlined,
-                          size: 56, color: AppConstants.mediumBeige),
-                      const SizedBox(height: 12),
-                      Text('error_loading'.tr),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: controller.fetchOrders,
-                        child: Text('retry'.tr),
-                      ),
-                    ],
-                  )
-                : Text('no_orders'.tr),
+        } else if (controller.orders.isEmpty) {
+          child = controller.hasError.value
+              ? _HistoryErrorState(onRetry: controller.fetchOrders)
+              : const _HistoryEmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  message: 'no_orders',
+                );
+        } else {
+          child = ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.orders.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, i) => _OrderCard(order: controller.orders[i]),
           );
         }
 
         return RefreshIndicator(
           color: AppConstants.darkBeige,
           onRefresh: controller.fetchOrders,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.orders.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _OrderCard(order: controller.orders[i]),
-          ),
+          child: child,
         );
       }),
+    );
+  }
+}
+
+class _HistoryEmptyState extends StatelessWidget {
+  const _HistoryEmptyState({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height -
+              MediaQuery.of(context).padding.top -
+              kToolbarHeight,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 56, color: AppConstants.mediumBeige),
+                const SizedBox(height: 16),
+                Text(message.tr),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryErrorState extends StatelessWidget {
+  const _HistoryErrorState({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height -
+              MediaQuery.of(context).padding.top -
+              kToolbarHeight,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_outlined,
+                    size: 56, color: AppConstants.mediumBeige),
+                const SizedBox(height: 12),
+                Text('error_loading'.tr),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: onRetry,
+                  child: Text('retry'.tr),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

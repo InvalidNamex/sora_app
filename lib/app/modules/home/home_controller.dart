@@ -9,8 +9,10 @@ import '../../core/models/banner_model.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
+import '../../core/models/promotion_model.dart';
 import '../../core/models/sub_category_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
 
 /// View-local model combining an item with its first (primary) property.
 class ItemWithProperty {
@@ -34,6 +36,7 @@ class HomeController extends GetxController {
   final subCategories = <SubCategoryModel>[].obs;
   final items = <ItemWithProperty>[].obs;
   final displayItems = <ItemWithProperty>[].obs;
+  final activePromotions = <PromotionModel>[].obs;
 
   final isLoadingBanners = true.obs;
   final isLoadingCategories = true.obs;
@@ -73,7 +76,9 @@ class HomeController extends GetxController {
         final props = (json['item_properties'] as List?)
             ?.map((p) => ItemPropertyModel.fromJson(Map<String, dynamic>.from(p as Map)))
             .toList();
-        final primary = (props != null && props.isNotEmpty) ? props.first : null;
+        final primary = (props != null && props.isNotEmpty)
+          ? props.firstWhereOrNull((p) => p.isDefault) ?? props.first
+          : null;
         parsed.add(ItemWithProperty(item: item, primaryProperty: primary));
       } catch (e) {
         debugPrint('[HomeController] item parse error: $e');
@@ -85,11 +90,11 @@ class HomeController extends GetxController {
   Future<List<dynamic>> _fetchSubCategoriesForCategory(int categoryId) async {
     try {
       return await SupabaseService.client
-          .from('sub_catergories')
+          .from('sub_categories')
           .select()
           .eq('categoryID', categoryId);
     } catch (e1) {
-      debugPrint('[HomeController] Failed to fetch sub_catergories: $e1');
+      debugPrint('[HomeController] Failed to fetch sub_categories: $e1');
       return await SupabaseService.client
           .from('sub_categories')
           .select()
@@ -104,6 +109,22 @@ class HomeController extends GetxController {
     try {
       final storage = GetStorage();
 
+      // Fetch all active promotions (not expired)
+      try {
+        final promoRes = await SupabaseService.client
+            .from('promotions')
+            .select()
+            .or('expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}')
+            .order('created_at', ascending: false);
+        final promoList = promoRes as List;
+        activePromotions.value = promoList
+            .map((e) => PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .where((p) => !p.isExpired)
+            .toList();
+      } catch (e) {
+        debugPrint('[HomeController] fetchPromotion error: $e');
+      }
+
       // Fetch banners
       final bannerRes = await SupabaseService.client.from('banners').select();
       final freshBannersJson = bannerRes as List;
@@ -111,17 +132,21 @@ class HomeController extends GetxController {
       // Fetch categories
       List categoryRes;
       try {
-        categoryRes = await SupabaseService.client.from('catergories').select();
+        categoryRes = await SupabaseService.client
+            .from('categories')
+        .select();
       } catch (e1) {
-        debugPrint('[HomeController] Failed to fetch catergories: $e1');
-        categoryRes = await SupabaseService.client.from('categories').select();
+        debugPrint('[HomeController] Failed to fetch categories: $e1');
+        categoryRes = await SupabaseService.client
+            .from('categories')
+        .select();
       }
       final freshCategoriesJson = categoryRes;
 
       // Fetch items (default landing list)
       final itemRes = await SupabaseService.client
           .from('items')
-          .select('*, item_properties(id, itemID, size, image, price, inStock)')
+          .select('id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)')
           .order('isFeatured', ascending: false)
           .order('id', ascending: false)
           .limit(50);
@@ -203,6 +228,12 @@ class HomeController extends GetxController {
   void _loadFromCache() {
     try {
       final storage = GetStorage();
+
+      // Restore persisted filters
+      final savedGender = storage.read<int>(AppConstants.kFilterGender);
+      genderFilter.value = savedGender;
+      inStockOnly.value = storage.read<bool>(AppConstants.kFilterInStock) ?? false;
+
       final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
       final cachedCategories = storage.read<List>(AppConstants.kCachedCategories);
       final cachedItems = storage.read<List>(AppConstants.kCachedItems);
@@ -244,12 +275,10 @@ class HomeController extends GetxController {
           .toList();
     } catch (e) {
       debugPrint('[HomeController] fetchSubCategories error: $e');
-      Get.snackbar(
+      AppSnackbar.show(
         'Error Loading Subcategories',
         e.toString(),
-        snackPosition: SnackPosition.bottom,
-        backgroundColor: Colors.red.shade900,
-        colorText: Colors.white,
+        type: AppSnackbarType.error,
       );
       subCategories.value = [];
     }
@@ -262,7 +291,7 @@ class HomeController extends GetxController {
     try {
       var query = SupabaseService.client
           .from('items')
-          .select('*, item_properties(id, itemID, size, image, price, inStock)');
+          .select('id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)');
 
       if (selectedSubCategoryId.value != null) {
         query = query.eq('subCategoryID', selectedSubCategoryId.value as Object);
@@ -288,8 +317,21 @@ class HomeController extends GetxController {
 
   void selectCategory(int? id) => selectedCategoryId.value = id;
   void selectSubCategory(int? id) => selectedSubCategoryId.value = id;
-  void setGenderFilter(int? v) => genderFilter.value = v;
-  void setInStockOnly(bool v) => inStockOnly.value = v;
+
+  void setGenderFilter(int? v) {
+    genderFilter.value = v;
+    final storage = GetStorage();
+    if (v == null) {
+      storage.remove(AppConstants.kFilterGender);
+    } else {
+      storage.write(AppConstants.kFilterGender, v);
+    }
+  }
+
+  void setInStockOnly(bool v) {
+    inStockOnly.value = v;
+    GetStorage().write(AppConstants.kFilterInStock, v);
+  }
   void setHoveredItem(int? id) => hoveredItemId.value = id;
 
   Future<void> pulseItemTap(int id) async {

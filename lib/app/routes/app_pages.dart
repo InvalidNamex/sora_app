@@ -23,6 +23,8 @@ import '../modules/wishlist/wishlist_binding.dart';
 import '../modules/wishlist/wishlist_view.dart';
 import '../modules/history/order_detail_binding.dart';
 import '../modules/history/order_detail_view.dart';
+import '../modules/location_picker/location_picker_binding.dart';
+import '../modules/location_picker/location_picker_page.dart';
 
 part 'app_routes.dart';
 
@@ -97,6 +99,11 @@ class AppPages {
       page: () => const OrderDetailView(),
       binding: OrderDetailBinding(),
       middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: Routes.locationPicker,
+      page: () => const LocationPickerPage(),
+      binding: LocationPickerBinding(),
     ),
   ];
 }

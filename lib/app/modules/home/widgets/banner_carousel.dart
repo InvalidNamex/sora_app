@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/banner_model.dart';
+import '../../../global_widgets/network_image_with_placeholder.dart';
 import '../../../routes/app_pages.dart';
 
 class BannerCarousel extends StatelessWidget {
@@ -76,9 +77,14 @@ class _BannerTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: NetworkImage(banner.bannerImage),
-              fit: BoxFit.fill
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox.expand(
+              child: NetworkImageWithPlaceholder(
+                imageUrl: banner.bannerImage,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),
