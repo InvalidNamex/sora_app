@@ -129,7 +129,7 @@ class _DesktopLayout extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Left: image (40% width)
             Expanded(
@@ -201,6 +201,7 @@ class _HeroImage extends StatelessWidget {
                 ? NetworkImageWithPlaceholder(
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
+                    enablePreview: true,
                   )
                 : Image.asset('assets/images/place_holder.png', fit: BoxFit.cover),
           ),

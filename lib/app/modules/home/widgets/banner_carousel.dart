@@ -44,7 +44,7 @@ class BannerCarousel extends StatelessWidget {
       itemBuilder: (context, index, _) => _BannerTile(banner: banners[index]),
       options: CarouselOptions(
         height: 180,
-        viewportFraction: 0.8,
+        viewportFraction: MediaQuery.of(context).size.width > 600 ? 0.6 : 0.9,
         initialPage: 0,
         autoPlay: banners.length > 1,
         autoPlayInterval: const Duration(seconds: 4),
