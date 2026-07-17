@@ -130,9 +130,10 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
     return IgnorePointer(
       child: CompositedTransformFollower(
         link: _previewLayerLink,
-        targetAnchor: Alignment.topCenter,
-        followerAnchor: Alignment.bottomCenter,
-        offset: const Offset(0, 12),
+        showWhenUnlinked: false,
+        targetAnchor: Alignment.center,
+        followerAnchor: Alignment.center,
+        offset: Offset.zero,
         child: Material(
           color: Colors.transparent,
           elevation: 12,

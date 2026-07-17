@@ -21,6 +21,9 @@ class ItemPropertyModel {
     return _propertyDescription;
   }
 
+  String get descAr => _propertyDescription;
+  String get descEn => _propertyDescriptionEn;
+
   const ItemPropertyModel({
     required this.id,
     required this.itemId,

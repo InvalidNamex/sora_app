@@ -125,9 +125,10 @@ class _LiveCard extends StatelessWidget {
           location: BannerLocation.topEnd,
           color: Colors.red.shade700,
           textStyle: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
           child: Stack(
             children: [
               _CardBody(entry: entry, prop: prop, heroTag: heroTag),
@@ -178,8 +179,8 @@ class _LiveCard extends StatelessWidget {
       final scale = pressed
           ? 0.97
           : hovered
-              ? 1.02
-              : 1.0;
+          ? 1.02
+          : 1.0;
 
       return MouseRegion(
         onEnter: (_) {
@@ -199,8 +200,8 @@ class _LiveCard extends StatelessWidget {
             onTap: () {
               HapticFeedback.mediumImpact();
               Get.toNamed(
-                Routes.item,
-                arguments: {'itemId': entry.item.id, 'heroTag': heroTag},
+                Routes.itemPath(entry.item.id),
+                arguments: {'heroTag': heroTag},
               );
             },
             child: cardBody,
@@ -246,7 +247,9 @@ class _CardBody extends StatelessWidget {
           AspectRatio(
             aspectRatio: 3 / 4,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: Hero(
                 tag: heroTag,
                 child: prop != null && prop!.image.isNotEmpty
@@ -304,8 +307,11 @@ class _PlaceholderImage extends StatelessWidget {
       errorBuilder: (context, error, stack) => Container(
         color: AppConstants.lightBeige,
         child: const Center(
-          child: Icon(Icons.image_outlined,
-              color: AppConstants.mediumBeige, size: 40),
+          child: Icon(
+            Icons.image_outlined,
+            color: AppConstants.mediumBeige,
+            size: 40,
+          ),
         ),
       ),
     );
@@ -339,9 +345,10 @@ class _ShimmerCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                      height: 12,
-                      width: double.infinity,
-                      color: Colors.white),
+                    height: 12,
+                    width: double.infinity,
+                    color: Colors.white,
+                  ),
                   const SizedBox(height: 6),
                   Container(height: 12, width: 60, color: Colors.white),
                 ],

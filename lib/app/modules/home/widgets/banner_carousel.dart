@@ -63,21 +63,19 @@ class _BannerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical : 5.0),
+      padding: const EdgeInsets.symmetric(vertical: 5.0),
       child: GestureDetector(
         onTap: () {
           final itemId = banner.bannerItemId;
           if (itemId != null) {
             Get.toNamed(
-              Routes.item,
-              arguments: {'itemId': itemId, 'heroTag': 'banner_$itemId'},
+              Routes.itemPath(itemId),
+              arguments: {'heroTag': 'banner_$itemId'},
             );
           }
         },
         child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox.expand(

@@ -22,12 +22,12 @@ class ItemController extends GetxController {
   ItemPropertyModel? get selectedProperty =>
       properties.isNotEmpty ? properties[selectedPropertyIndex.value] : null;
 
-    ItemPropertyModel? get defaultProperty =>
+  ItemPropertyModel? get defaultProperty =>
       properties.firstWhereOrNull((p) => p.isDefault);
 
   String get effectiveDescription {
-      final propertyDescription =
-          (selectedProperty?.propertyDescription ?? '').trim();
+    final propertyDescription = (selectedProperty?.propertyDescription ?? '')
+        .trim();
     if (propertyDescription.isNotEmpty) {
       return propertyDescription;
     }
@@ -39,7 +39,8 @@ class ItemController extends GetxController {
   void onInit() {
     super.onInit();
     final args = Get.arguments as Map<String, dynamic>? ?? {};
-    _itemId = args['itemId'] as int? ?? 0;
+    final rawItemId = args['itemId'] ?? Get.parameters['id'];
+    _itemId = rawItemId is int ? rawItemId : int.tryParse('$rawItemId') ?? 0;
     heroTag = (args['heroTag'] as String?) ?? 'hero_item_$_itemId';
   }
 

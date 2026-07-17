@@ -34,36 +34,73 @@ class AppScaffold extends GetView<NavController> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final index = controller.currentIndex.value;
-      final cartCount = CartController.to.totalItems;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
 
-      if (Responsive.isDesktop(context)) {
-        return Scaffold(
-          appBar: _DesktopAppBar(currentIndex: index, cartCount: cartCount),
-          body: Row(
-            children: [
-              const AppDrawer(isDesktop: true),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: IndexedStack(index: index, children: _tabs),
+        if (controller.currentIndex.value != 0) {
+          controller.setIndex(0);
+          return;
+        }
+
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text('exit_app'.tr),
+            content: Text('exit_app_confirm'.tr),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text('cancel'.tr),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('exit'.tr),
               ),
             ],
           ),
         );
-      }
 
-      return Scaffold(
-        key: controller.scaffoldKey,
-        drawer: const AppDrawer(),
-        body: IndexedStack(index: index, children: _tabs),
-        bottomNavigationBar: _MobileBottomNav(
-          currentIndex: index,
-          cartCount: cartCount,
-          onTap: controller.setIndex,
-        ),
-      );
-    });
+        if (shouldExit == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Obx(() {
+        final index = controller.currentIndex.value;
+        final cartCount = CartController.to.totalItems;
+
+        if (Responsive.isDesktop(context)) {
+          return Scaffold(
+            appBar: _DesktopAppBar(currentIndex: index, cartCount: cartCount),
+            body: Row(
+              children: [
+                const AppDrawer(isDesktop: true),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: IndexedStack(index: index, children: _tabs),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          key: controller.scaffoldKey,
+          drawer: const AppDrawer(),
+          body: IndexedStack(index: index, children: _tabs),
+          bottomNavigationBar: _MobileBottomNav(
+            currentIndex: index,
+            cartCount: cartCount,
+            onTap: controller.setIndex,
+          ),
+        );
+      }),
+    );
   }
 }
 

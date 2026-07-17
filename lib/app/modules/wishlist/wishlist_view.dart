@@ -20,16 +20,19 @@ class WishlistView extends GetView<WishlistController> {
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(
-              child: CircularProgressIndicator(
-                  color: AppConstants.darkBeige));
+            child: CircularProgressIndicator(color: AppConstants.darkBeige),
+          );
         }
         if (controller.likedItems.isEmpty) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.favorite_border,
-                    size: 64, color: AppConstants.mediumBeige),
+                const Icon(
+                  Icons.favorite_border,
+                  size: 64,
+                  color: AppConstants.mediumBeige,
+                ),
                 const SizedBox(height: 12),
                 Text('wishlist_empty'.tr),
               ],
@@ -68,11 +71,8 @@ class _WishlistCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Get.toNamed(
-        Routes.item,
-        arguments: {
-          'itemId': liked.itemId,
-          'heroTag': 'wishlist_${liked.itemId}',
-        },
+        Routes.itemPath(liked.itemId),
+        arguments: {'heroTag': 'wishlist_${liked.itemId}'},
       ),
       child: Stack(
         children: [
@@ -102,18 +102,23 @@ class _WishlistCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(liked.itemName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(
+                          liked.itemName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
                         if (liked.price != null)
                           Text(
                             '${AppConstants.currency} ${liked.price!.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                color: AppConstants.darkBeige,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13),
+                              color: AppConstants.darkBeige,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                       ],
                     ),
@@ -133,8 +138,11 @@ class _WishlistCard extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.favorite,
-                    color: Colors.brown, size: 20),
+                child: const Icon(
+                  Icons.favorite,
+                  color: Colors.brown,
+                  size: 20,
+                ),
               ),
             ),
           ),

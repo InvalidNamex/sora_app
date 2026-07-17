@@ -11,6 +11,9 @@ class CategoryModel {
           ? _categoryNameEn.trim()
           : _categoryName;
 
+  String get nameAr => _categoryName;
+  String get nameEn => _categoryNameEn;
+
   const CategoryModel({
     required this.id,
     required String categoryName,

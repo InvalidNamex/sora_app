@@ -240,7 +240,7 @@ Known tables from the current docs:
 
 Important existing quirks:
 
-- Some code falls back from typo table names like `catergories` and `sub_categories` to the corrected names. Prefer the corrected names in new work unless compatibility is required.
+- Some code falls back from typo table names like `categories` and `sub_categories` to the corrected names. Prefer the corrected names in new work unless compatibility is required.
 - Cart table column `itemID` points to `item_properties.id`, not `items.id`.
 - User-facing order statuses currently include `Pending`, `Processing`, `Shipped`, and `Delivered`.
 - Affiliate tracking stores the Firebase UID in `get_storage` under `AppConstants.kActiveAffiliateId`, then checkout resolves it to `users.id`.

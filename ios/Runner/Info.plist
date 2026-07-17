@@ -12,6 +12,16 @@
 					<string>com.googleusercontent.apps.295714444020-hu37a175ntl53tn2jiubm1nesemv41d3</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.softforge.sora</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>sora</string>
+				</array>
+			</dict>
 		</array>
 		<key>LSApplicationQueriesSchemes</key>
 		<array>
@@ -81,5 +91,7 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 			<string>UIInterfaceOrientationPortrait</string>
 		</array>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Sora needs access to your photo library to pick category images.</string>
 	</dict>
 </plist>

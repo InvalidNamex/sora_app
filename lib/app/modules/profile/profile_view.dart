@@ -61,12 +61,30 @@ class ProfileView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      user.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          user.name.isEmpty ? 'Add your name' : user.name,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: user.name.isEmpty ? Colors.grey : null),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          padding: const EdgeInsets.only(left: 8),
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => _EditNameDialog(initialName: user.name),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -398,6 +416,76 @@ class _SignOutDialog extends StatelessWidget {  @override
           style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent),
           child: Text('sign_out'.tr),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Edit Name Dialog ─────────────────────────────────────────────────────────
+
+class _EditNameDialog extends StatefulWidget {
+  final String initialName;
+  const _EditNameDialog({required this.initialName});
+
+  @override
+  State<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends State<_EditNameDialog> {
+  late final TextEditingController _nameCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final newName = _nameCtrl.text.trim();
+    if (newName.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      await AuthController.to.updateName(newName);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Name'),
+      content: TextField(
+        controller: _nameCtrl,
+        decoration: const InputDecoration(
+          labelText: 'Your Name',
+          border: OutlineInputBorder(),
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('cancel'.tr),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          style: ElevatedButton.styleFrom(backgroundColor: AppConstants.darkBeige, foregroundColor: Colors.white),
+          child: _saving
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Text('save'.tr),
         ),
       ],
     );

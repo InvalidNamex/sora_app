@@ -12,6 +12,9 @@ class SubCategoryModel {
           ? _subCategoryNameEn.trim()
           : _subCategoryName;
 
+  String get nameAr => _subCategoryName;
+  String get nameEn => _subCategoryNameEn;
+
   const SubCategoryModel({
     required this.id,
     required this.categoryId,

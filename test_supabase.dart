@@ -6,11 +6,11 @@ void main() async {
   final anonKey = 'sb_publishable_PHGiUyOddWPoaeUkpSQNMQ_RnSLOjnA';
 
   try {
-    final cat2Res = await http.get(Uri.parse('$url/catergories'), headers: {
-      'apikey': anonKey,
-      'Authorization': 'Bearer $anonKey',
-    });
-    print('Catergories: ${cat2Res.body}');
+    final cat2Res = await http.get(
+      Uri.parse('$url/categories'),
+      headers: {'apikey': anonKey, 'Authorization': 'Bearer $anonKey'},
+    );
+    print('Categories: ${cat2Res.body}');
   } catch (e) {
     print('Error: $e');
   }

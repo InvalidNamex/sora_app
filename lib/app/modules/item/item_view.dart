@@ -6,7 +6,9 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import '../../global_widgets/network_image_with_placeholder.dart';
+import '../../routes/app_pages.dart';
 import '../cart/cart_controller.dart';
+import '../navigation/nav_controller.dart';
 import 'item_controller.dart';
 
 /// Item detail screen.
@@ -19,16 +21,21 @@ class ItemView extends GetView<ItemController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const BackButton(),
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          onPressed: () => _handleBack(context),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       extendBodyBehindAppBar: true,
       bottomNavigationBar: Obx(() {
-        if (controller.isLoading.value || controller.hasError.value || controller.item.value == null) {
+        if (controller.isLoading.value ||
+            controller.hasError.value ||
+            controller.item.value == null) {
           return const SizedBox.shrink();
         }
-        
+
         // Hide bottom sheet style add to cart on desktop since it will exist in the right column
         if (Responsive.isDesktop(context)) {
           return const SizedBox.shrink();
@@ -64,8 +71,11 @@ class ItemView extends GetView<ItemController> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.wifi_off_outlined,
-                    size: 56, color: AppConstants.mediumBeige),
+                const Icon(
+                  Icons.wifi_off_outlined,
+                  size: 56,
+                  color: AppConstants.mediumBeige,
+                ),
                 const SizedBox(height: 12),
                 Text('error_loading'.tr),
                 const SizedBox(height: 16),
@@ -89,6 +99,21 @@ class ItemView extends GetView<ItemController> {
         );
       }),
     );
+  }
+
+  void _handleBack(BuildContext context) {
+    if (Get.isRegistered<NavController>()) {
+      NavController.to.setIndex(0);
+    }
+
+    final previousRoute = Get.previousRoute;
+    final canPop = Navigator.of(context).canPop();
+    if (canPop && previousRoute.isNotEmpty && previousRoute != Routes.splash) {
+      Get.back<void>();
+      return;
+    }
+
+    Get.offAllNamed(Routes.home);
   }
 }
 
@@ -145,7 +170,11 @@ class _DesktopLayout extends StatelessWidget {
                 onRefresh: controller.refreshItem,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(top: 80, right: 32, bottom: 32),
+                  padding: const EdgeInsets.only(
+                    top: 80,
+                    right: 32,
+                    bottom: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -155,7 +184,8 @@ class _DesktopLayout extends StatelessWidget {
                         final count = CartController.to.totalItems;
                         return _AddToCartDesktopBtn(
                           pulse: controller.cartFabPulse.value,
-                          inStock: controller.selectedProperty?.inStock ?? false,
+                          inStock:
+                              controller.selectedProperty?.inStock ?? false,
                           prop: controller.selectedProperty,
                           item: controller.item.value,
                           count: count,
@@ -203,7 +233,10 @@ class _HeroImage extends StatelessWidget {
                     fit: BoxFit.cover,
                     enablePreview: true,
                   )
-                : Image.asset('assets/images/place_holder.png', fit: BoxFit.cover),
+                : Image.asset(
+                    'assets/images/place_holder.png',
+                    fit: BoxFit.cover,
+                  ),
           ),
         ),
       );
@@ -228,8 +261,9 @@ class _ItemDetails extends StatelessWidget {
           // ── Name ─────────────────────────────────────────────────
           Text(
             item.itemName,
-            style: textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -280,8 +314,9 @@ class _ItemDetails extends StatelessWidget {
               children: [
                 Text(
                   'description'.tr,
-                  style: textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(description, style: textTheme.bodyMedium),
@@ -321,8 +356,8 @@ class _VariantChip extends StatelessWidget {
             color: isSelected
                 ? AppConstants.darkBeige
                 : inStock
-                    ? AppConstants.mediumBeige
-                    : Colors.grey.shade400,
+                ? AppConstants.mediumBeige
+                : Colors.grey.shade400,
           ),
           borderRadius: BorderRadius.circular(24),
         ),
@@ -332,12 +367,10 @@ class _VariantChip extends StatelessWidget {
             color: isSelected
                 ? Colors.white
                 : inStock
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Colors.grey,
-            fontWeight:
-                isSelected ? FontWeight.bold : FontWeight.normal,
-            decoration:
-                inStock ? null : TextDecoration.lineThrough,
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.grey,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            decoration: inStock ? null : TextDecoration.lineThrough,
           ),
         ),
       ),
@@ -365,13 +398,18 @@ class _AddToCartBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16) +
+      padding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 16) +
           MediaQuery.paddingOf(context).copyWith(top: 0),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.3
+                  : 0.05,
+            ),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -542,13 +580,9 @@ class _AddToCartDesktopBtn extends StatelessWidget {
         ),
         label: Text(
           inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 }
-

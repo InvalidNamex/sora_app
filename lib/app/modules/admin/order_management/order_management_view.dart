@@ -137,6 +137,53 @@ class _OrderRow extends StatelessWidget {
           ),
           trailing: _StatusDropdown(order: order, controller: controller),
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (order.address.isNotEmpty) ...[
+                    const Text('Delivery Address:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(order.address, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 8),
+                  ],
+                  if (order.checkoutPhone.isNotEmpty) ...[
+                    const Text('Contact Phone:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(order.checkoutPhone, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 8),
+                  ],
+                  if (order.notes != null && order.notes!.isNotEmpty) ...[
+                    const Text('Order Notes:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(order.notes!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
+                    const SizedBox(height: 8),
+                  ],
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Gross Total:', style: TextStyle(fontSize: 13)),
+                      Text('${AppConstants.currency} ${order.grossTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Discount:', style: TextStyle(fontSize: 13)),
+                      Text('- ${AppConstants.currency} ${order.totalDiscount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, color: Colors.red)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Net Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text('${AppConstants.currency} ${order.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppConstants.darkBeige)),
+                    ],
+                  ),
+                  const Divider(),
+                  const Text('Order Items:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                ],
+              ),
+            ),
             FutureBuilder(
               future: controller.fetchOrderDetails(order.id),
               builder: (context, snapshot) => Obx(() {
@@ -183,9 +230,11 @@ class _StatusDropdown extends StatelessWidget {
 
   static const _statuses = [
     'Pending',
-    'Processing',
-    'Shipped',
+    'Confirmed',
+    'Out for delivery',
     'Delivered',
+    'Cancelled',
+    'Returned',
   ];
 
   @override

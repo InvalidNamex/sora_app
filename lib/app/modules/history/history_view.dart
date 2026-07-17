@@ -54,7 +54,8 @@ class HistoryView extends GetView<HistoryController> {
             padding: const EdgeInsets.all(16),
             itemCount: controller.orders.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _OrderCard(order: controller.orders[i]),
+            itemBuilder: (context, i) =>
+                _OrderCard(order: controller.orders[i]),
           );
         }
 
@@ -80,7 +81,8 @@ class _HistoryEmptyState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         SizedBox(
-          height: MediaQuery.sizeOf(context).height -
+          height:
+              MediaQuery.sizeOf(context).height -
               MediaQuery.of(context).padding.top -
               kToolbarHeight,
           child: Center(
@@ -110,22 +112,23 @@ class _HistoryErrorState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         SizedBox(
-          height: MediaQuery.sizeOf(context).height -
+          height:
+              MediaQuery.sizeOf(context).height -
               MediaQuery.of(context).padding.top -
               kToolbarHeight,
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.wifi_off_outlined,
-                    size: 56, color: AppConstants.mediumBeige),
+                const Icon(
+                  Icons.wifi_off_outlined,
+                  size: 56,
+                  color: AppConstants.mediumBeige,
+                ),
                 const SizedBox(height: 12),
                 Text('error_loading'.tr),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: onRetry,
-                  child: Text('retry'.tr),
-                ),
+                ElevatedButton(onPressed: onRetry, child: Text('retry'.tr)),
               ],
             ),
           ),
@@ -151,7 +154,7 @@ class _OrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () {
           HapticFeedback.lightImpact();
-          Get.toNamed(Routes.orderDetail, arguments: order.id);
+          Get.toNamed(Routes.orderDetailPath(order.id));
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -165,8 +168,10 @@ class _OrderCard extends StatelessWidget {
                   color: AppConstants.lightBeige,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.receipt_long,
-                    color: AppConstants.darkBeige),
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: AppConstants.darkBeige,
+                ),
               ),
               const SizedBox(width: 14),
               // Details
@@ -179,27 +184,32 @@ class _OrderCard extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text(dateStr,
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                            fontSize: 12)),
+                    Text(
+                      dateStr,
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       '${AppConstants.currency} ${order.totalPrice.toStringAsFixed(2)}',
                       style: const TextStyle(
-                          color: AppConstants.darkBeige,
-                          fontWeight: FontWeight.bold),
+                        color: AppConstants.darkBeige,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
               // Status badge
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -208,9 +218,10 @@ class _OrderCard extends StatelessWidget {
                 child: Text(
                   order.orderStatus,
                   style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11),
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],

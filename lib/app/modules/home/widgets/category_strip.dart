@@ -31,12 +31,15 @@ class CategoryStrip extends StatelessWidget {
     if (categories.isEmpty) {
       return const SizedBox.shrink();
     }
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final categoryRowHeight = textScale > 1.0 ? 100.0 : 96.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Category row ──────────────────────────────────────────────
         SizedBox(
-          height: 96,
+          height: categoryRowHeight,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -64,8 +67,11 @@ class CategoryStrip extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
             child: Row(
               children: [
-                const Icon(Icons.info_outline,
-                    size: 14, color: AppConstants.mediumBeige),
+                const Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: AppConstants.mediumBeige,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'no_categories'.tr,
@@ -133,8 +139,7 @@ class _Chip extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: small ? 12 : 13,
-            fontWeight:
-                selected ? FontWeight.bold : FontWeight.normal,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         selected: selected,
@@ -146,16 +151,13 @@ class _Chip extends StatelessWidget {
               : Theme.of(context).colorScheme.onSurface,
         ),
         showCheckmark: false,
-        backgroundColor:
-            Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         side: BorderSide(
           color: selected
               ? AppConstants.darkBeige
               : AppConstants.mediumBeige.withValues(alpha: 0.4),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
@@ -184,7 +186,7 @@ class _CategoryTile extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           width: 82,
-          padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+          padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
@@ -209,19 +211,20 @@ class _CategoryTile extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 56,
-                  height: 56,
+                  width: 54,
+                  height: 54,
                   child: NetworkImageWithPlaceholder(
                     imageUrl: imageUrl ?? '',
                     fit: BoxFit.cover,
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: selected ? FontWeight.bold : FontWeight.w500,

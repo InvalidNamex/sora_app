@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
@@ -12,10 +13,18 @@ class HistoryController extends GetxController {
   final isLoading = true.obs;
   final hasError = false.obs;
 
+  StreamSubscription? _subscription;
+
   @override
   void onReady() {
     super.onReady();
     fetchOrders();
+  }
+
+  @override
+  void onClose() {
+    _subscription?.cancel();
+    super.onClose();
   }
 
   Future<void> fetchOrders() async {
@@ -26,21 +35,23 @@ class HistoryController extends GetxController {
     }
     isLoading.value = true;
     hasError.value = false;
-    try {
-      final response = await SupabaseService.client
-          .from('order_master')
-          .select()
-          .eq('userID', userId)
-          .order('created_at', ascending: false);
-      orders.value = (response as List)
-          .map((e) => OrderMasterModel.fromJson(e as Map<String, dynamic>))
+
+    _subscription?.cancel();
+    _subscription = SupabaseService.client
+        .from('order_master')
+        .stream(primaryKey: ['id'])
+        .eq('userID', userId)
+        .order('created_at', ascending: false)
+        .listen((data) {
+      orders.value = data
+          .map((e) => OrderMasterModel.fromJson(e))
           .toList();
-    } catch (e) {
+      isLoading.value = false;
+    }, onError: (e) {
       debugPrint('[HistoryController] fetchOrders error: $e');
       orders.value = [];
       hasError.value = true;
-    } finally {
       isLoading.value = false;
-    }
+    });
   }
 }

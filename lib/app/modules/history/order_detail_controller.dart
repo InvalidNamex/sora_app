@@ -14,7 +14,8 @@ class OrderDetailController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    orderId = Get.arguments as int? ?? 0;
+    final rawOrderId = Get.arguments ?? Get.parameters['id'];
+    orderId = rawOrderId is int ? rawOrderId : int.tryParse('$rawOrderId') ?? 0;
   }
 
   @override

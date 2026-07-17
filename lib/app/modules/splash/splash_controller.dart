@@ -1,17 +1,15 @@
-import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
 
-import '../../core/constants/app_constants.dart';
+import '../../core/services/deep_link_service.dart';
 import '../../routes/app_pages.dart';
 import '../home/home_controller.dart';
 
 /// Bootstraps the app:
-///   1. Captures any incoming deep-link (affiliate ID).
+///   1. Captures any incoming deep-link.
 ///   2. Pre-fetches home screen data if cache is empty.
 ///   3. Waits the minimum splash duration.
-///   4. Always routes to Home — guests can browse freely.
+///   4. Opens the deep-link target, or routes to Home.
 class SplashController extends GetxController {
   @override
   void onReady() {
@@ -23,17 +21,18 @@ class SplashController extends GetxController {
   }
 
   Future<void> _bootstrap() async {
-    _captureDeepLink();
-
     // Eagerly instantiate HomeController to read cache
     final homeController = Get.find<HomeController>();
 
-    final hasCache = homeController.banners.isNotEmpty &&
+    final hasCache =
+        homeController.banners.isNotEmpty &&
         homeController.categories.isNotEmpty &&
         homeController.items.isNotEmpty;
 
     if (!hasCache) {
-      debugPrint('[SplashController] No cache found. Pre-fetching home screen data during splash screen...');
+      debugPrint(
+        '[SplashController] No cache found. Pre-fetching home screen data during splash screen...',
+      );
       // Start the network fetch and wait for it alongside the minimum splash duration (1.4s)
       // If the fetch takes too long, time out after 4 seconds to avoid hanging on the splash screen
       await Future.wait([
@@ -41,25 +40,16 @@ class SplashController extends GetxController {
         homeController.checkForUpdates(),
       ]);
     } else {
-      debugPrint('[SplashController] Cache present. Proceeding after minimum delay...');
+      debugPrint(
+        '[SplashController] Cache present. Proceeding after minimum delay...',
+      );
       // Cache exists, proceed immediately after minimum delay; checkForUpdates runs in background
       await Future.delayed(const Duration(milliseconds: 1400));
     }
 
-    Get.offAllNamed(Routes.home);
-  }
-
-  void _captureDeepLink() {
-    AppLinks().getInitialLink().then((uri) {
-      if (uri == null) return;
-      // Match pattern: https://www.sora-eg.store/{uid}
-      final uid = uri.pathSegments.firstOrNull;
-      if (uid != null && uid.isNotEmpty) {
-        GetStorage().write(AppConstants.kActiveAffiliateId, uid);
-      }
-    }).catchError((e) {
-      debugPrint('[SplashController] Deep-link capture error: $e');
-    });
+    final openedDeepLink = await DeepLinkService.to.openPendingLink();
+    if (!openedDeepLink) {
+      Get.offAllNamed(Routes.home);
+    }
   }
 }
-

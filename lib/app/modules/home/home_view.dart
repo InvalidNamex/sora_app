@@ -35,7 +35,10 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
     }).toList();
   }
 
-  Widget _buildResultsList(BuildContext context, List<ItemWithProperty> results) {
+  Widget _buildResultsList(
+    BuildContext context,
+    List<ItemWithProperty> results,
+  ) {
     if (results.isEmpty) {
       return Center(
         child: Text(
@@ -54,7 +57,10 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
         final prop = entry.primaryProperty;
 
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: SizedBox(
@@ -77,19 +83,22 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: prop != null
-              ? Text('${AppConstants.currency} ${prop.price.toStringAsFixed(2)}')
+              ? Text(
+                  '${AppConstants.currency} ${prop.price.toStringAsFixed(2)}',
+                )
               : null,
           trailing: entry.item.isFeatured
-              ? const Icon(Icons.star_rounded, color: AppConstants.darkBeige, size: 18)
+              ? const Icon(
+                  Icons.star_rounded,
+                  color: AppConstants.darkBeige,
+                  size: 18,
+                )
               : null,
           onTap: () {
             close(context, entry);
             Get.toNamed(
-              Routes.item,
-              arguments: {
-                'itemId': entry.item.id,
-                'heroTag': 'hero_item_${entry.item.id}',
-              },
+              Routes.itemPath(entry.item.id),
+              arguments: {'heroTag': 'hero_item_${entry.item.id}'},
             );
           },
         );
@@ -104,10 +113,7 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
   List<Widget>? buildActions(BuildContext context) {
     return [
       if (query.isNotEmpty)
-        IconButton(
-          icon: const Icon(Icons.clear),
-          onPressed: () => query = '',
-        ),
+        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
     ];
   }
 
@@ -149,12 +155,18 @@ class HomeView extends GetView<HomeController> {
             SliverAppBar(
               pinned: true,
               floating: true,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.92),
+              backgroundColor: Theme.of(
+                context,
+              ).scaffoldBackgroundColor.withValues(alpha: 0.92),
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               leadingWidth: 54,
               leading: Padding(
-                padding: const EdgeInsetsDirectional.only(start: 12, top: 8, bottom: 8),
+                padding: const EdgeInsetsDirectional.only(
+                  start: 12,
+                  top: 8,
+                  bottom: 8,
+                ),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.grey.withValues(alpha: 0.12),
@@ -212,8 +224,10 @@ class HomeView extends GetView<HomeController> {
                 .take(10)
                 .toList();
             final hasFeatured = featured.isNotEmpty;
-            final showBanners = controller.isLoadingBanners.value || controller.banners.isNotEmpty;
-            
+            final showBanners =
+                controller.isLoadingBanners.value ||
+                controller.banners.isNotEmpty;
+
             if (!hasFeatured && !showBanners) {
               return const SliverToBoxAdapter(child: SizedBox.shrink());
             }
@@ -247,7 +261,10 @@ class HomeView extends GetView<HomeController> {
               return SizedBox(
                 height: 148,
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   scrollDirection: Axis.horizontal,
                   itemCount: promos.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
@@ -262,14 +279,16 @@ class HomeView extends GetView<HomeController> {
 
           // ── Category & sub-category strip ──────────────────────────────────
           SliverToBoxAdapter(
-            child: Obx(() => CategoryStrip(
-                  categories: controller.categories.value,
-                  subCategories: controller.subCategories.value,
-                  selectedCategoryId: controller.selectedCategoryId.value,
-                  selectedSubCategoryId: controller.selectedSubCategoryId.value,
-                  onCategoryTap: controller.selectCategory,
-                  onSubCategoryTap: controller.selectSubCategory,
-                )),
+            child: Obx(
+              () => CategoryStrip(
+                categories: controller.categories.value,
+                subCategories: controller.subCategories.value,
+                selectedCategoryId: controller.selectedCategoryId.value,
+                selectedSubCategoryId: controller.selectedSubCategoryId.value,
+                onCategoryTap: controller.selectCategory,
+                onSubCategoryTap: controller.selectSubCategory,
+              ),
+            ),
           ),
 
           // ── Product grid ───────────────────────────────────────────────────
@@ -320,13 +339,15 @@ class _TopHeroSection extends StatelessWidget {
                     Text(
                       'featured'.tr,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade700,
                         borderRadius: BorderRadius.circular(999),
@@ -353,11 +374,8 @@ class _TopHeroSection extends StatelessWidget {
                     final img = e.primaryProperty?.image ?? '';
                     return InkWell(
                       onTap: () => Get.toNamed(
-                        Routes.item,
-                        arguments: {
-                          'itemId': e.item.id,
-                          'heroTag': 'hero_item_${e.item.id}',
-                        },
+                        Routes.itemPath(e.item.id),
+                        arguments: {'heroTag': 'hero_item_${e.item.id}'},
                       ),
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
@@ -365,7 +383,9 @@ class _TopHeroSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: AppConstants.mediumBeige.withValues(alpha: 0.5),
+                            color: AppConstants.mediumBeige.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -425,7 +445,8 @@ class _TopHeroSection extends StatelessWidget {
                       ),
                     );
                   },
-                  separatorBuilder: (context, index) => const SizedBox(width: 10),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 10),
                   itemCount: featured.length,
                 ),
               ),
@@ -452,7 +473,10 @@ class _CollapsingHeroDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final t = (shrinkOffset / maxExtent).clamp(0.0, 1.0);
     final opacity = 1.0 - t;
     final y = -18 * t;
@@ -513,6 +537,8 @@ class _PromoBanner extends StatelessWidget {
               children: [
                 Text(
                   'exclusive_offer'.tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -523,15 +549,19 @@ class _PromoBanner extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   promotion.localizedText,
-                  style: const TextStyle(
+                  maxLines: compact ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: compact ? 16 : 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${AppConstants.currency} ${promotion.promotionDiscount} ${'discount'.tr}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
@@ -548,36 +578,32 @@ class _PromoBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white30),
             ),
-            child:                 GestureDetector(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: promotion.promotionCode));
-                    AppSnackbar.show(
-                      'copied'.tr,
-                      promotion.promotionCode,
-                      type: AppSnackbarType.info,
-                      duration: const Duration(seconds: 2),
-                    );
-                  },
-                  child:Row(
-              children: [
-                Text(
+            child: GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: promotion.promotionCode));
+                AppSnackbar.show(
+                  'copied'.tr,
                   promotion.promotionCode,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    letterSpacing: 1.0,
+                  type: AppSnackbarType.info,
+                  duration: const Duration(seconds: 2),
+                );
+              },
+              child: Row(
+                children: [
+                  Text(
+                    promotion.promotionCode,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                    Icons.copy,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                
-              ],
-            ),),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.copy, color: Colors.white, size: 14),
+                ],
+              ),
+            ),
           ),
         ],
       ),

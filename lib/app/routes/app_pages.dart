@@ -8,8 +8,14 @@ import '../modules/admin/admin_binding.dart';
 import '../modules/admin/admin_view.dart';
 import '../modules/admin/affiliate_management/affiliate_management_binding.dart';
 import '../modules/admin/affiliate_management/affiliate_management_view.dart';
+import '../modules/admin/catalog_management/catalog_management_binding.dart';
+import '../modules/admin/catalog_management/catalog_management_view.dart';
+import '../modules/admin/notifications/notifications_binding.dart';
+import '../modules/admin/notifications/notifications_view.dart';
 import '../modules/admin/order_management/order_management_binding.dart';
 import '../modules/admin/order_management/order_management_view.dart';
+import '../modules/admin/reports/reports_binding.dart';
+import '../modules/admin/reports/reports_view.dart';
 import '../modules/affiliate/affiliate_binding.dart';
 import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
@@ -39,16 +45,15 @@ class AppPages {
       page: () => const SplashView(),
       binding: SplashBinding(),
     ),
-    GetPage(
-      name: Routes.auth,
-      page: () => const AuthView(),
-    ),
-    GetPage(
-      name: Routes.home,
-      page: () => const AppScaffold(),
-    ),
+    GetPage(name: Routes.auth, page: () => const AuthView()),
+    GetPage(name: Routes.home, page: () => const AppScaffold()),
     GetPage(
       name: Routes.item,
+      page: () => const ItemView(),
+      binding: ItemBinding(),
+    ),
+    GetPage(
+      name: Routes.itemDetail,
       page: () => const ItemView(),
       binding: ItemBinding(),
     ),
@@ -89,6 +94,24 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminCatalog,
+      page: () => const CatalogManagementView(),
+      binding: CatalogManagementBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminReports,
+      page: () => const ReportsView(),
+      binding: ReportsBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminNotifications,
+      page: () => const NotificationsView(),
+      binding: NotificationsBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.affiliateDashboard,
       page: () => const AffiliateView(),
       binding: AffiliateBinding(),
@@ -100,6 +123,13 @@ class AppPages {
       binding: OrderDetailBinding(),
       middlewares: [AuthGuard()],
     ),
+    GetPage(
+      name: Routes.orderDetailById,
+      page: () => const OrderDetailView(),
+      binding: OrderDetailBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(name: Routes.affiliateRef, page: () => const AppScaffold()),
     GetPage(
       name: Routes.locationPicker,
       page: () => const LocationPickerPage(),

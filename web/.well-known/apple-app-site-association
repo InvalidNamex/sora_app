@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": [
+          "WRHTJ9468B.com.softforge.sora"
+        ],
+        "components": [
+          {
+            "/": "/item/*"
+          },
+          {
+            "/": "/orders/*"
+          },
+          {
+            "/": "/ref/*"
+          },
+          {
+            "/": "/home"
+          }
+        ]
+      }
+    ]
+  }
+}

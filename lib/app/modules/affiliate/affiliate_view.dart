@@ -34,6 +34,8 @@ class AffiliateView extends GetView<AffiliateController> {
                 _ShareLinkCard(controller: controller),
                 const SizedBox(height: 20),
                 _OrdersList(controller: controller),
+                const SizedBox(height: 20),
+                _PayoutHistory(controller: controller),
                 const SizedBox(height: 32),
                 _PayoutButton(controller: controller),
               ],
@@ -209,6 +211,42 @@ class _OrdersList extends StatelessWidget {
                   style: const TextStyle(
                       color: AppConstants.darkBeige,
                       fontWeight: FontWeight.bold),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+}
+
+// ── Payout History ─────────────────────────────────────────────────────────────
+
+class _PayoutHistory extends StatelessWidget {
+  const _PayoutHistory({required this.controller});
+  final AffiliateController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.payoutHistory.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('payout_history'.tr,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 10),
+        ...controller.payoutHistory.map((req) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: const Icon(Icons.history, color: AppConstants.darkBeige),
+                title: Text('${AppConstants.currency} ${req.amount.toStringAsFixed(2)}'),
+                subtitle: Text(DateFormat.yMMMd().format(req.createdAt)),
+                trailing: Text(
+                  req.status,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: req.status == 'Paid' ? Colors.green : Colors.orange,
+                  ),
                 ),
               ),
             )),

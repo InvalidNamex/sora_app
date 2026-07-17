@@ -1,0 +1,100 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": ".",
+  "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/splash",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/home",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/item",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/item/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/orders/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ref/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/checkout",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/address-book",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/wishlist",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin-orders",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin-affiliates",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin-catalog",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin-reports",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin-notifications",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/affiliate",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/location-picker",
+      "destination": "/index.html"
+    }
+  ]
+}

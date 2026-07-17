@@ -18,6 +18,10 @@ class AppSnackbar {
     final backgroundColor = _backgroundFor(type);
     final textColor = _textFor(type);
 
+    if (type == AppSnackbarType.error) {
+      debugPrint('[AppSnackbar] Error: $title - $message');
+    }
+
     Get.snackbar(
       title,
       message,

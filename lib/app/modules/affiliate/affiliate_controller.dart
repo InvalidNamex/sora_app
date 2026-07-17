@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/order_master_model.dart';
+import '../../core/models/payout_request_model.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../auth/auth_controller.dart';
@@ -10,6 +11,7 @@ class AffiliateController extends GetxController {
   static AffiliateController get to => Get.find();
 
   final referredOrders = <OrderMasterModel>[].obs;
+  final payoutHistory = <PayoutRequestModel>[].obs;
   final totalEarnings = 0.0.obs;
   final pendingEarnings = 0.0.obs;
   final isLoading = true.obs;
@@ -17,7 +19,8 @@ class AffiliateController extends GetxController {
 
   String get affiliateLink {
     final uid = AuthController.to.currentUser.value?.uid ?? '';
-    return '${AppConstants.baseDomain}/$uid';
+    final baseDomain = AppConstants.baseDomain.replaceFirst(RegExp(r'/$'), '');
+    return '$baseDomain/ref/$uid';
   }
 
   @override
@@ -69,8 +72,7 @@ class AffiliateController extends GetxController {
         final qty = (d['quantity'] as num?)?.toDouble() ?? 0;
         final price = (d['price'] as num?)?.toDouble() ?? 0;
         final prop = d['item_properties'] as Map<String, dynamic>? ?? {};
-        final pct =
-            (prop['affiliatePercentage'] as num?)?.toDouble() ?? 0;
+        final pct = (prop['affiliatePercentage'] as num?)?.toDouble() ?? 0;
         final commission = qty * price * pct / 100;
         total += commission;
       }
@@ -91,14 +93,23 @@ class AffiliateController extends GetxController {
           final qty = (d['quantity'] as num?)?.toDouble() ?? 0;
           final price = (d['price'] as num?)?.toDouble() ?? 0;
           final prop = d['item_properties'] as Map<String, dynamic>? ?? {};
-          final pct =
-              (prop['affiliatePercentage'] as num?)?.toDouble() ?? 0;
+          final pct = (prop['affiliatePercentage'] as num?)?.toDouble() ?? 0;
           pending += qty * price * pct / 100;
         }
       }
 
       totalEarnings.value = total;
       pendingEarnings.value = pending;
+
+      // Fetch payout history
+      final payoutsResp = await SupabaseService.client
+          .from('payout_requests')
+          .select('*, users(name, phone)')
+          .eq('affiliateID', userId)
+          .order('created_at', ascending: false);
+      payoutHistory.value = (payoutsResp as List)
+          .map((e) => PayoutRequestModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } finally {
       isLoading.value = false;
     }

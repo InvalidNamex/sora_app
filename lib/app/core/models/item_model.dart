@@ -23,6 +23,11 @@ class ItemModel {
           ? _itemDescriptionEn.trim()
           : _itemDescription;
 
+  String get nameAr => _itemName;
+  String get nameEn => _itemNameEn;
+  String get descAr => _itemDescription;
+  String get descEn => _itemDescriptionEn;
+
   const ItemModel({
     required this.id,
     required this.categoryId,

@@ -10,6 +10,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/deep_link_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../navigation/nav_controller.dart';
 import '../../routes/app_pages.dart';
@@ -22,7 +24,7 @@ import '../../routes/app_pages.dart';
 /// Phone Sign-In: Firebase authenticates the user. Supabase receives the
 /// Firebase JWT once a custom OIDC provider (Firebase) is configured in the
 /// Supabase dashboard under Authentication → Third-party Auth Providers.
-class AuthController extends GetxController {
+class AuthController extends GetxController with WidgetsBindingObserver {
   static AuthController get to => Get.find();
 
   final _auth = fb.FirebaseAuth.instance;
@@ -40,18 +42,27 @@ class AuthController extends GetxController {
   String? _pendingPhone;
   int? _resendToken;
   Timer? _resendTimer;
+  StreamSubscription<String>? _fcmTokenRefreshSub;
+  bool _isRegisteringFcm = false;
+  bool _hasScheduledFcmRetry = false;
+  int _fcmRetryAttempts = 0;
+  static const int _maxFcmRetryAttempts = 5;
 
   /// Controllers and focus nodes shared with [PhoneOtpSheet].
-  final List<TextEditingController> otpControllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> otpFocusNodes =
-      List.generate(6, (_) => FocusNode());
+  final List<TextEditingController> otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
+  final List<FocusNode> otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   void resetOtpState() {
-    for (final c in otpControllers) c.clear();
+    for (final c in otpControllers) {
+      c.clear();
+    }
   }
 
-  bool get canResendOtp => resendSecondsLeft.value == 0 && _pendingPhone != null;
+  bool get canResendOtp =>
+      resendSecondsLeft.value == 0 && _pendingPhone != null;
 
   void _startResendCountdown([int seconds = 30]) {
     _resendTimer?.cancel();
@@ -88,10 +99,27 @@ class AuthController extends GetxController {
   }
 
   @override
+  void onInit() {
+    super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+    _fcmTokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((
+      token,
+    ) {
+      unawaited(_saveRefreshedFcmToken(token));
+    });
+  }
+
+  @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     _resendTimer?.cancel();
-    for (final c in otpControllers) c.dispose();
-    for (final f in otpFocusNodes) f.dispose();
+    _fcmTokenRefreshSub?.cancel();
+    for (final c in otpControllers) {
+      c.dispose();
+    }
+    for (final f in otpFocusNodes) {
+      f.dispose();
+    }
     super.onClose();
   }
 
@@ -101,11 +129,19 @@ class AuthController extends GetxController {
     _auth.authStateChanges().listen(_onFirebaseAuthState);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_registerFcmForCurrentUser());
+    }
+  }
+
   Future<void> _onFirebaseAuthState(fb.User? user) async {
     if (user == null) {
       currentUser.value = null;
       return;
     }
+    unawaited(_registerFcmForCurrentUser());
     // Restore Supabase user on cold start (returning user already signed in).
     if (currentUser.value == null) {
       try {
@@ -144,11 +180,7 @@ class AuthController extends GetxController {
       await _postAuthSetup(result.user!);
     } catch (e) {
       debugPrint('[AuthController] Google sign-in error: $e');
-      AppSnackbar.show(
-        'error'.tr,
-        e.toString(),
-        type: AppSnackbarType.error,
-      );
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
     } finally {
       isLoading.value = false;
     }
@@ -292,35 +324,78 @@ class AuthController extends GetxController {
 
   // ── Post-auth setup ───────────────────────────────────────────────────────
 
-  /// Order matters: upsert user → register FCM → sync cart → expose user.
+  /// Order matters: upsert user → sync cart → expose user.
   /// Setting [currentUser] last ensures CartController re-loads from Supabase
-  /// only after the guest cart has already been synced.
+  /// only after the guest cart has already been synced. Notification token
+  /// registration runs in the background so login never waits on OS prompts,
+  /// APNs, or FCM token availability.
   Future<void> _postAuthSetup(fb.User firebaseUser) async {
     final model = await _upsertSupabaseUser(firebaseUser);
-    await _registerFcmToken(firebaseUser);
     await _syncGuestCart(model.id);
     currentUser.value = model;
-    if (Get.currentRoute != Routes.home) {
+    unawaited(_registerFcmForCurrentUser());
+    final openedPendingRoute = await DeepLinkService.to.openPendingAuthRoute();
+    if (!openedPendingRoute && Get.currentRoute != Routes.home) {
       Get.offAllNamed(Routes.home);
     }
   }
 
   Future<UserModel> _upsertSupabaseUser(fb.User user) async {
-    final result = await SupabaseService.client
+    final existingData = await SupabaseService.client
         .from('users')
-        .upsert(
-          {
+        .select()
+        .eq('uid', user.uid)
+        .maybeSingle();
+
+    if (existingData != null) {
+      final payload = <String, dynamic>{};
+
+      final currentName = existingData['name'] as String?;
+      if (user.displayName != null &&
+          user.displayName!.isNotEmpty &&
+          (currentName == null || currentName.isEmpty)) {
+        payload['name'] = user.displayName;
+      }
+
+      final currentPhone = existingData['phone'] as String?;
+      final newPhone = user.phoneNumber ?? _pendingPhone;
+      if (newPhone != null &&
+          newPhone.isNotEmpty &&
+          (currentPhone == null || currentPhone.isEmpty)) {
+        payload['phone'] = newPhone;
+      }
+
+      final currentEmail = existingData['email'] as String?;
+      if (user.email != null &&
+          user.email!.isNotEmpty &&
+          (currentEmail == null || currentEmail.isEmpty)) {
+        payload['email'] = user.email;
+      }
+
+      if (payload.isNotEmpty) {
+        final result = await SupabaseService.client
+            .from('users')
+            .update(payload)
+            .eq('uid', user.uid)
+            .select()
+            .single();
+        return UserModel.fromJson(result);
+      }
+
+      return UserModel.fromJson(existingData);
+    } else {
+      final result = await SupabaseService.client
+          .from('users')
+          .insert({
             'uid': user.uid,
             'name': user.displayName ?? '',
             'phone': user.phoneNumber ?? _pendingPhone ?? '',
             if (user.email != null) 'email': user.email,
-          },
-          onConflict: 'uid',
-          ignoreDuplicates: false,
-        )
-        .select()
-        .single();
-    return UserModel.fromJson(result);
+          })
+          .select()
+          .single();
+      return UserModel.fromJson(result);
+    }
   }
 
   Future<void> _registerFcmToken(fb.User user) async {
@@ -338,17 +413,163 @@ class AuthController extends GetxController {
       );
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        final token = await messaging.getToken();
+        unawaited(_requestNotificationDisplayPermissions());
+        final hasApnsToken = await _waitForApnsTokenIfNeeded(
+          messaging,
+        ).timeout(const Duration(seconds: 11));
+        if (!hasApnsToken) {
+          _scheduleFcmRetry('APNs token not ready yet');
+          return;
+        }
+        final token = await _getFcmTokenWithRetry(
+          messaging,
+        ).timeout(const Duration(seconds: 5));
         if (token == null) return;
-        await SupabaseService.client
-            .from('users')
-            .update({'fcmTokens': token}).eq('uid', user.uid);
+        await _upsertDeviceToken(
+          user.uid,
+          token,
+        ).timeout(const Duration(seconds: 8));
+        _fcmRetryAttempts = 0;
+        _hasScheduledFcmRetry = false;
+        debugPrint('[AuthController] FCM token registered successfully');
       } else {
         debugPrint('[AuthController] Notification permissions not granted');
       }
     } catch (e) {
+      final isApnsTokenPending = '$e'.contains('apns-token-not-set');
+      if (isApnsTokenPending) {
+        _scheduleFcmRetry('APNs token not ready yet');
+        return;
+      }
       debugPrint('[AuthController] Failed to register FCM token: $e');
     }
+  }
+
+  void _scheduleFcmRetry(String reason) {
+    if (_hasScheduledFcmRetry) return;
+
+    if (_fcmRetryAttempts >= _maxFcmRetryAttempts) {
+      debugPrint(
+        '[AuthController] $reason; stopped retrying. Check iOS APNs/Firebase setup.',
+      );
+      return;
+    }
+
+    _hasScheduledFcmRetry = true;
+    _fcmRetryAttempts += 1;
+    debugPrint(
+      '[AuthController] $reason; retrying in 3 seconds '
+      '($_fcmRetryAttempts/$_maxFcmRetryAttempts)',
+    );
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      _hasScheduledFcmRetry = false;
+      if (_auth.currentUser != null && !_isRegisteringFcm) {
+        unawaited(_registerFcmForCurrentUser());
+      }
+    });
+  }
+
+  Future<void> _requestNotificationDisplayPermissions() async {
+    if (!Get.isRegistered<NotificationService>()) return;
+
+    try {
+      await NotificationService.to.requestDisplayPermissions();
+    } catch (e) {
+      debugPrint(
+        '[AuthController] Notification display permission skipped: $e',
+      );
+    }
+  }
+
+  Future<void> _registerFcmForCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null || _isRegisteringFcm) return;
+    _isRegisteringFcm = true;
+    try {
+      await _registerFcmToken(user);
+    } finally {
+      _isRegisteringFcm = false;
+    }
+  }
+
+  Future<void> _saveRefreshedFcmToken(String token) async {
+    final user = _auth.currentUser;
+    if (user == null || token.isEmpty) return;
+    try {
+      await _upsertDeviceToken(user.uid, token);
+    } catch (e) {
+      debugPrint('[AuthController] Failed to persist refreshed FCM token: $e');
+    }
+  }
+
+  Future<void> _upsertDeviceToken(String uid, String token) async {
+    final isArabic = Get.locale?.languageCode == 'ar';
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    await SupabaseService.client.from('device_tokens').upsert({
+      'userID': uid,
+      'fcmToken': token,
+      'isAndroid': isAndroid,
+      'isArabic': isArabic,
+      'isActive': true,
+      'lastSeen': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'fcmToken');
+  }
+
+  Future<void> _deactivateCurrentDeviceToken() async {
+    try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        if (apnsToken == null || apnsToken.isEmpty) {
+          debugPrint(
+            '[AuthController] Skipping device-token deactivation; APNs token is not available yet.',
+          );
+          return;
+        }
+      }
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await SupabaseService.client
+          .from('device_tokens')
+          .update({
+            'isActive': false,
+            'lastSeen': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('fcmToken', token);
+    } catch (e) {
+      debugPrint('[AuthController] Failed to deactivate device token: $e');
+    }
+  }
+
+  Future<bool> _waitForApnsTokenIfNeeded(FirebaseMessaging messaging) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return true;
+
+    const attempts = 20; // Wait up to 10 seconds (20 × 500ms)
+    for (var i = 0; i < attempts; i++) {
+      final apnsToken = await messaging.getAPNSToken();
+      if (apnsToken != null && apnsToken.isNotEmpty) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return false;
+  }
+
+  Future<String?> _getFcmTokenWithRetry(FirebaseMessaging messaging) async {
+    const attempts = 3;
+    for (var i = 0; i < attempts; i++) {
+      try {
+        return await messaging.getToken();
+      } catch (e) {
+        final isApnsTokenPending =
+            !kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.iOS &&
+            '$e'.contains('apns-token-not-set');
+
+        if (!isApnsTokenPending || i == attempts - 1) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
+    }
+    return null;
   }
 
   /// Reads the local guest cart, upserts each item into the authenticated
@@ -388,6 +609,25 @@ class AuthController extends GetxController {
     await _storage.remove(AppConstants.kGuestCart);
   }
 
+  // ── User Data management ──────────────────────────────────────────────────
+
+  Future<void> updateName(String newName) async {
+    final user = currentUser.value;
+    if (user == null) return;
+    try {
+      final result = await SupabaseService.client
+          .from('users')
+          .update({'name': newName.trim()})
+          .eq('id', user.id)
+          .select()
+          .single();
+      currentUser.value = UserModel.fromJson(result);
+    } catch (e) {
+      debugPrint('[AuthController] updateName error: $e');
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
+    }
+  }
+
   // ── Phone number management ───────────────────────────────────────────────
 
   /// Updates [phone] and/or [phoneTwo] in Supabase and refreshes [currentUser].
@@ -409,11 +649,7 @@ class AuthController extends GetxController {
       currentUser.value = UserModel.fromJson(result);
     } catch (e) {
       debugPrint('[AuthController] updatePhoneNumbers error: $e');
-      AppSnackbar.show(
-        'error'.tr,
-        e.toString(),
-        type: AppSnackbarType.error,
-      );
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
     }
   }
 
@@ -422,6 +658,7 @@ class AuthController extends GetxController {
   Future<void> signOut() async {
     try {
       isLoading.value = true;
+      await _deactivateCurrentDeviceToken();
       await _googleSignIn.signOut();
       await _auth.signOut();
       await SupabaseService.client.auth.signOut();
@@ -435,11 +672,7 @@ class AuthController extends GetxController {
       Get.offAllNamed(Routes.home);
     } catch (e) {
       debugPrint('[AuthController] Sign-out error: $e');
-      AppSnackbar.show(
-        'error'.tr,
-        e.toString(),
-        type: AppSnackbarType.error,
-      );
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
     } finally {
       isLoading.value = false;
     }
