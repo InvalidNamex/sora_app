@@ -5,7 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
+import 'package:get_storage_wasm/get_storage_wasm.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/user_model.dart';

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
+import 'package:get_storage_wasm/get_storage_wasm.dart';
 
 import '../../modules/navigation/nav_controller.dart';
 import '../constants/app_constants.dart';
@@ -64,7 +64,9 @@ class DeepLinkService extends GetxService {
 
   Future<bool> handleDeepLink(String? value) async {
     if (value == null || value.trim().isEmpty) return false;
-    return handleUri(Uri.parse(value.trim()));
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null) return false;
+    return handleUri(uri);
   }
 
   Future<bool> handleUri(Uri uri) async {

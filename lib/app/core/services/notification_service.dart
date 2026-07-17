@@ -8,7 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 
 import '../../../firebase_options.dart';
-import 'deep_link_service.dart';
+import 'link_navigation_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -174,21 +174,14 @@ class NotificationService extends GetxService {
 
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      unawaited(_openDeepLink(data['deep_link'] as String?));
+      unawaited(LinkNavigationService.open(data['deep_link'] as String?));
     } catch (e) {
       debugPrint('[NotificationService] local payload parse error: $e');
     }
   }
 
-  Future<void> _handleRemoteMessageTap(RemoteMessage message) {
-    return _openDeepLink(message.data['deep_link'] as String?);
-  }
-
-  Future<void> _openDeepLink(String? deepLink) async {
-    final opened = await DeepLinkService.to.handleDeepLink(deepLink);
-    if (!opened) {
-      debugPrint('[NotificationService] ignored notification link: $deepLink');
-    }
+  Future<void> _handleRemoteMessageTap(RemoteMessage message) async {
+    await LinkNavigationService.open(message.data['deep_link'] as String?);
   }
 
   String? _stringData(RemoteMessage message, String key) {

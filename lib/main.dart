@@ -5,7 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
+import 'package:get_storage_wasm/get_storage_wasm.dart';
 
 import 'app/core/bindings/app_binding.dart';
 import 'app/core/controllers/settings_controller.dart';

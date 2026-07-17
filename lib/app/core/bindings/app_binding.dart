@@ -7,6 +7,7 @@ import '../../modules/home/home_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
 import '../../modules/wishlist/wishlist_controller.dart';
 import '../services/deep_link_service.dart';
+import '../services/in_app_messaging_service.dart';
 import '../services/notification_service.dart';
 
 /// Registers all long-lived (permanent) and lazily-loaded tab controllers.
@@ -19,6 +20,7 @@ class AppBinding {
     Get.put(WishlistController(), permanent: true);
     Get.put(DeepLinkService(), permanent: true);
     Get.put(NotificationService(), permanent: true);
+    Get.put(InAppMessagingService(), permanent: true);
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
     Get.lazyPut<HistoryController>(() => HistoryController(), fenix: true);
   }

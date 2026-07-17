@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -66,7 +67,6 @@ class OrderManagementController extends GetxController {
   final updatingOrderId = Rxn<int>();
   RealtimeChannel? _ordersChannel;
   Timer? _refreshDebounce;
-  bool _notifyRpcEnabled = true;
 
   static const statuses = [
     'all',
@@ -172,27 +172,39 @@ class OrderManagementController extends GetxController {
       orders.refresh();
       _applyFilter();
 
-      if (_notifyRpcEnabled) {
-        try {
-          await SupabaseService.client.rpc(
-            'notify_order_status_change',
-            params: {'p_order_id': order.id, 'p_status': newStatus},
-          );
-        } on PostgrestException catch (e) {
-          if (e.code == 'PGRST202') {
-            _notifyRpcEnabled = false;
-            debugPrint(
-              'notify_order_status_change RPC not found; notifications disabled until backend function is deployed.',
-            );
-          } else {
-            debugPrint('FCM notification rpc failed: $e');
-          }
-        } catch (e) {
-          debugPrint('FCM notification rpc failed: $e');
-        }
-      }
+      await _processNotificationQueue();
     } finally {
       updatingOrderId.value = null;
+    }
+  }
+
+  Future<void> _processNotificationQueue() async {
+    try {
+      final idToken = await fb.FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null || idToken.isEmpty) {
+        debugPrint(
+          '[OrderManagement] Status updated, but no Firebase admin token '
+          'was available to process its notification.',
+        );
+        return;
+      }
+
+      final result = await SupabaseService.client.functions.invoke(
+        'process-notification-jobs',
+        headers: {'Authorization': 'Bearer $idToken'},
+        body: {'limit': 50},
+      );
+
+      if (result.status < 200 || result.status >= 300) {
+        debugPrint(
+          '[OrderManagement] Status notification worker failed: ${result.data}',
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        '[OrderManagement] Status updated, but its notification could not '
+        'be processed: $e',
+      );
     }
   }
 }

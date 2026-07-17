@@ -43,7 +43,7 @@ dependencies:
   get: ^5.0.0-release-candidate-9.3.3
 
   # Local storage (theme, guest cart, affiliate id)
-  get_storage: ^2.1.1
+  get_storage_wasm: 2.1.2
 
   # Environment variables
   flutter_dotenv: ^5.2.1
