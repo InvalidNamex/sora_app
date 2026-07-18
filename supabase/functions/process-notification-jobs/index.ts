@@ -123,7 +123,24 @@ async function fetchTokensForJob(
     query = query.eq('isArabic', true);
   }
 
-  if (job.eventType === 'order_status_changed') {
+  if (job.payload?.target_audience === 'admins') {
+    const { data: admins, error: adminsError } = await serviceClient
+      .from('users')
+      .select('uid')
+      .eq('isAdmin', true);
+    if (adminsError || !admins || admins.length === 0) return [];
+
+    const adminUids = admins
+      .map((row) => row.uid)
+      .filter((uid) => typeof uid === 'string' && uid.length > 0);
+    if (adminUids.length === 0) return [];
+    query = query.in('userID', adminUids);
+  } else if (
+    typeof job.payload?.target_user_uid === 'string' &&
+    job.payload.target_user_uid.length > 0
+  ) {
+    query = query.eq('userID', job.payload.target_user_uid);
+  } else if (job.eventType === 'order_status_changed') {
     const orderIdRaw = job.payload?.order_id;
     const orderId = typeof orderIdRaw === 'number'
       ? orderIdRaw

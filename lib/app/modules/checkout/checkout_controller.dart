@@ -1,24 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get_storage_wasm/get_storage_wasm.dart';
 
-import '../../core/constants/app_constants.dart';
 import '../../core/models/address_model.dart';
-import '../../core/models/promotion_model.dart';
-import '../../core/models/voucher_model.dart';
+import '../../core/models/affiliate_program_models.dart';
+import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../routes/app_pages.dart';
 import '../auth/auth_controller.dart';
 import '../cart/cart_controller.dart';
 import '../history/history_controller.dart';
 import '../navigation/nav_controller.dart';
-import '../../routes/app_pages.dart';
 
 class CheckoutController extends GetxController {
   static CheckoutController get to => Get.find();
 
   final addresses = <AddressModel>[].obs;
   final selectedAddress = Rxn<AddressModel>();
+  final appliedPromo = Rxn<PromoCodeValidation>();
   final discount = 0.0.obs;
   final promoLoading = false.obs;
   final placingOrder = false.obs;
@@ -26,17 +27,23 @@ class CheckoutController extends GetxController {
   final notesCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
 
+  String? _appliedAffiliateSource;
+
   double get cartTotal => CartController.to.totalPrice;
-  double get finalTotal => (cartTotal - discount.value).clamp(0, double.infinity);
+  double get finalTotal =>
+      (cartTotal - discount.value).clamp(0, double.infinity);
 
   @override
   void onReady() {
     super.onReady();
-    loadAddresses();
-    // Pre-populate phone from user profile.
+    unawaited(loadAddresses());
+    unawaited(_loadSavedAffiliateCode());
+
     final user = AuthController.to.currentUser.value;
     if (user != null) {
-      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true ? user.phoneTwo! : user.phone;
+      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true
+          ? user.phoneTwo!
+          : user.phone;
     }
   }
 
@@ -48,9 +55,7 @@ class CheckoutController extends GetxController {
     super.onClose();
   }
 
-  // ── Address ───────────────────────────────────────────────────────────────
-
-    Future<void> loadAddresses() async {
+  Future<void> loadAddresses() async {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) return;
     final previousSelectedId = selectedAddress.value?.id;
@@ -64,13 +69,13 @@ class CheckoutController extends GetxController {
         .toList();
 
     selectedAddress.value =
-      addresses.firstWhereOrNull((a) => a.id == previousSelectedId) ??
+        addresses.firstWhereOrNull((a) => a.id == previousSelectedId) ??
         addresses.firstWhereOrNull((a) => a.isDefault) ??
         addresses.firstOrNull;
   }
 
-  void selectAddress(AddressModel addr) {
-    selectedAddress.value = addr;
+  void selectAddress(AddressModel address) {
+    selectedAddress.value = address;
   }
 
   Future<void> refreshCheckout() async {
@@ -83,73 +88,115 @@ class CheckoutController extends GetxController {
     }
     await loadAddresses();
     await CartController.to.refreshCart();
+
+    final validation = appliedPromo.value;
+    if (validation != null) {
+      await applyPromo(showFeedback: false);
+    }
   }
 
-  // ── Promo code ────────────────────────────────────────────────────────────
+  Future<void> _loadSavedAffiliateCode() async {
+    try {
+      var code = AffiliateProgramService.activeCode;
+      var source = AffiliateProgramService.activeSource;
 
-  Future<void> applyPromo() async {
-    final code = promoCtrl.text.trim();
-    if (code.isEmpty) return;
+      if (code == null) {
+        final remote = await AffiliateProgramService.getActiveAttribution();
+        code = remote?['code'] as String?;
+        source = remote?['source'] as String?;
+        if (code != null && code.isNotEmpty) {
+          await AffiliateProgramService.rememberAffiliateCode(
+            code,
+            source: source ?? 'link',
+          );
+        }
+      }
+
+      if (code == null || code.isEmpty) return;
+      promoCtrl.text = code;
+      _appliedAffiliateSource = source == 'link' ? 'link' : 'manual';
+      await applyPromo(showFeedback: false);
+    } catch (e) {
+      debugPrint('[CheckoutController] saved affiliate code error: $e');
+    }
+  }
+
+  void onPromoChanged(String value) {
+    final validation = appliedPromo.value;
+    if (validation == null) return;
+    if (AffiliateProgramService.promoCodeFromInput(value) == validation.code) {
+      return;
+    }
+    appliedPromo.value = null;
+    discount.value = 0;
+    _appliedAffiliateSource = null;
+  }
+
+  Future<bool> applyPromo({bool showFeedback = true}) async {
+    final code = AffiliateProgramService.promoCodeFromInput(promoCtrl.text);
+    if (code.isEmpty) {
+      appliedPromo.value = null;
+      discount.value = 0;
+      return true;
+    }
+
     promoLoading.value = true;
     try {
-      // ── 1. Check vouchers ────────────────────────────────────────────────
-      final voucherRes = await SupabaseService.client
-          .from('vouchers')
-          .select()
-          .eq('voucherCode', code)
-          .eq('isActive', true)
-          .maybeSingle();
-
-      if (voucherRes != null) {
-        final voucher = VoucherModel.fromJson(voucherRes);
-        if (voucher.voucherAmount != null) {
-          discount.value = voucher.voucherAmount!;
-        } else if (voucher.voucherPercentage != null) {
-          discount.value = cartTotal * voucher.voucherPercentage! / 100;
+      final validation = await AffiliateProgramService.validateCode(
+        code: code,
+        subtotal: cartTotal,
+      );
+      if (!validation.valid) {
+        appliedPromo.value = null;
+        discount.value = 0;
+        if (AffiliateProgramService.activeCode == code) {
+          await AffiliateProgramService.clearActiveAttribution();
         }
+        if (showFeedback) {
+          AppSnackbar.show(
+            'error'.tr,
+            'invalid_voucher'.tr,
+            type: AppSnackbarType.error,
+          );
+        }
+        return false;
+      }
+
+      promoCtrl.text = validation.code;
+      appliedPromo.value = validation;
+      discount.value = validation.discountAmount;
+
+      if (validation.isAffiliate) {
+        final isSavedLink =
+            AffiliateProgramService.activeCode == validation.code &&
+            AffiliateProgramService.activeSource == 'link';
+        _appliedAffiliateSource = isSavedLink ? 'link' : 'manual';
+        if (!isSavedLink) {
+          await AffiliateProgramService.rememberManualAffiliateCode(
+            validation.code,
+          );
+        }
+      } else {
+        _appliedAffiliateSource = null;
+      }
+
+      if (showFeedback) {
         AppSnackbar.show(
           'success'.tr,
           'voucher_applied'.tr,
           type: AppSnackbarType.success,
         );
-        return;
       }
-
-      // ── 2. Check promotions ──────────────────────────────────────────────
-      final promoRes = await SupabaseService.client
-          .from('promotions')
-          .select()
-          .eq('promotionCode', code)
-          .or('expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}')
-          .maybeSingle();
-
-      if (promoRes != null) {
-        final promo = PromotionModel.fromJson(
-            Map<String, dynamic>.from(promoRes as Map));
-        if (!promo.isExpired) {
-          discount.value = promo.promotionDiscount.toDouble();
-          AppSnackbar.show(
-            'success'.tr,
-            'voucher_applied'.tr,
-            type: AppSnackbarType.success,
-          );
-          return;
-        }
+      return true;
+    } on AffiliateProgramException catch (e) {
+      if (showFeedback) {
+        AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
       }
-
-      // ── 3. Not found ─────────────────────────────────────────────────────
-      AppSnackbar.show(
-        'error'.tr,
-        'invalid_voucher'.tr,
-        type: AppSnackbarType.error,
-      );
-      discount.value = 0;
+      return false;
     } finally {
       promoLoading.value = false;
     }
   }
-
-  // ── Place order ───────────────────────────────────────────────────────────
 
   Future<void> placeOrder() async {
     final address = selectedAddress.value;
@@ -173,49 +220,28 @@ class CheckoutController extends GetxController {
     }
     if (CartController.to.cartItems.isEmpty) return;
 
-    // Build address snapshot
-    final addressSnapshot = [
-      address.address,
-      if (address.landmark.isNotEmpty) address.landmark,
-    ].join(' - ');
+    final enteredCode = AffiliateProgramService.promoCodeFromInput(
+      promoCtrl.text,
+    );
+    if (enteredCode.isNotEmpty && appliedPromo.value?.code != enteredCode) {
+      final valid = await applyPromo();
+      if (!valid) return;
+    }
 
     placingOrder.value = true;
     try {
-      final affiliateId = await _lookupAffiliateId();
+      await AffiliateProgramService.placeOrder(
+        addressId: address.id,
+        phone: phone,
+        notes: notesCtrl.text.trim(),
+        promoCode: enteredCode,
+        affiliateSource: _appliedAffiliateSource,
+      );
 
-      // 1. Insert order_master
-      final orderRow = await SupabaseService.client
-          .from('order_master')
-          .insert({
-            'userID': user.id,
-            'addressID': address.id,
-            'address': addressSnapshot,
-            'phoneNumber': phone,
-            if (affiliateId != null) 'affiliateID': affiliateId,
-            'totalPrice': finalTotal,
-            'totalDiscount': discount.value,
-            'notes': notesCtrl.text.trim(),
-            'orderStatus': 'Pending',
-          })
-          .select()
-          .single();
-
-      final orderId = (orderRow['id'] as num).toInt();
-
-      // 2. Insert order_detail for each item
-      for (final item in CartController.to.cartItems) {
-        await SupabaseService.client.from('order_detail').insert({
-          'orderMasterID': orderId,
-          'itemPropertyID': item.itemPropertyId,
-          'itemName': item.itemName,
-          'quantity': item.quantity,
-          'price': item.price,
-        });
-      }
-
-      // 3. Clear cart + affiliate id
       await CartController.to.clear();
-      GetStorage().remove(AppConstants.kActiveAffiliateId);
+      if (appliedPromo.value?.isAffiliate == true) {
+        await AffiliateProgramService.clearActiveAttribution();
+      }
 
       if (Get.isRegistered<HistoryController>()) {
         await HistoryController.to.fetchOrders();
@@ -228,26 +254,18 @@ class CheckoutController extends GetxController {
         'order_placed_msg'.tr,
         type: AppSnackbarType.success,
       );
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
+      await CartController.to.refreshCart();
+    } catch (e) {
+      debugPrint('[CheckoutController] placeOrder error: $e');
+      AppSnackbar.show(
+        'error'.tr,
+        'order_failed'.tr,
+        type: AppSnackbarType.error,
+      );
     } finally {
       placingOrder.value = false;
-    }
-  }
-
-  /// Resolves the stored affiliate Firebase UID → Supabase users.id (int).
-  Future<int?> _lookupAffiliateId() async {
-    final uid = GetStorage().read<String>(AppConstants.kActiveAffiliateId);
-    if (uid == null) return null;
-    try {
-      final row = await SupabaseService.client
-          .from('users')
-          .select('id')
-          .eq('uid', uid)
-          .eq('isAffiliate', true)
-          .maybeSingle();
-      return (row?['id'] as num?)?.toInt();
-    } catch (e) {
-      debugPrint('[CheckoutController] Affiliate lookup error: $e');
-      return null;
     }
   }
 }

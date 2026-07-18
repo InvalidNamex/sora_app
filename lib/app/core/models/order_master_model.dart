@@ -5,13 +5,18 @@ class OrderMasterModel {
   final int userId;
   final int addressId;
   final int? affiliateId;
+  final String? affiliateCode;
+  final String? affiliateSource;
+  final double affiliateCommissionAmount;
   final double totalPrice;
   final double totalDiscount;
   final String? notes;
   final String orderStatus;
   final DateTime createdAt;
+
   /// Snapshot of the delivery address at the time of ordering.
   final String address;
+
   /// Contact phone number supplied by the customer at checkout.
   final String phoneNumber;
 
@@ -20,6 +25,9 @@ class OrderMasterModel {
     required this.userId,
     required this.addressId,
     this.affiliateId,
+    this.affiliateCode,
+    this.affiliateSource,
+    this.affiliateCommissionAmount = 0,
     required this.totalPrice,
     required this.totalDiscount,
     this.notes,
@@ -35,6 +43,10 @@ class OrderMasterModel {
         userId: (json['userID'] as num?)?.toInt() ?? 0,
         addressId: (json['addressID'] as num?)?.toInt() ?? 0,
         affiliateId: (json['affiliateID'] as num?)?.toInt(),
+        affiliateCode: json['affiliateCode'] as String?,
+        affiliateSource: json['affiliateSource'] as String?,
+        affiliateCommissionAmount:
+            (json['affiliateCommissionAmount'] as num?)?.toDouble() ?? 0,
         totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0,
         totalDiscount: (json['totalDiscount'] as num?)?.toDouble() ?? 0,
         notes: json['notes'] as String?,

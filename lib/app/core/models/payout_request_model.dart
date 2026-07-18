@@ -12,6 +12,11 @@ class PayoutRequestModel {
   final DateTime createdAt;
   final String affiliateName;
   final String affiliatePhone;
+  final String? payoutMethod;
+  final String? payoutAccount;
+  final String? paymentReference;
+  final String? adminNote;
+  final DateTime? reviewedAt;
 
   const PayoutRequestModel({
     required this.id,
@@ -21,6 +26,11 @@ class PayoutRequestModel {
     required this.createdAt,
     required this.affiliateName,
     required this.affiliatePhone,
+    this.payoutMethod,
+    this.payoutAccount,
+    this.paymentReference,
+    this.adminNote,
+    this.reviewedAt,
   });
 
   factory PayoutRequestModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +43,13 @@ class PayoutRequestModel {
       createdAt: DateTime.parse(json['created_at'] as String),
       affiliateName: (user['name'] as String?) ?? '',
       affiliatePhone: (user['phone'] as String?) ?? '',
+      payoutMethod: json['payoutMethod'] as String?,
+      payoutAccount: json['payoutAccount'] as String?,
+      paymentReference: json['paymentReference'] as String?,
+      adminNote: json['adminNote'] as String?,
+      reviewedAt: json['reviewedAt'] == null
+          ? null
+          : DateTime.tryParse('${json['reviewedAt']}'),
     );
   }
 }

@@ -12,7 +12,6 @@ class ItemPropertyModel {
   final double price;
   final bool inStock;
   final bool isDefault;
-  final double? affiliatePercentage;
 
   String get propertyDescription {
     if (isEnglishLocale() && _propertyDescriptionEn.trim().isNotEmpty) {
@@ -34,9 +33,8 @@ class ItemPropertyModel {
     required this.price,
     this.inStock = true,
     this.isDefault = false,
-    this.affiliatePercentage,
-  })  : _propertyDescription = propertyDescription,
-        _propertyDescriptionEn = propertyDescriptionEn;
+  }) : _propertyDescription = propertyDescription,
+       _propertyDescriptionEn = propertyDescriptionEn;
 
   factory ItemPropertyModel.fromJson(Map<String, dynamic> json) =>
       ItemPropertyModel(
@@ -55,8 +53,5 @@ class ItemPropertyModel {
         price: (json['price'] as num?)?.toDouble() ?? 0,
         inStock: (json['inStock'] as bool?) ?? true,
         isDefault: (json['isDefault'] as bool?) ?? false,
-        affiliatePercentage: json['affiliatePercentage'] != null
-            ? (json['affiliatePercentage'] as num).toDouble()
-            : null,
       );
 }

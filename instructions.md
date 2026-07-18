@@ -6,7 +6,7 @@ Platform Targets: Web, Android, iOS
 * **State Management:** GetX `^5.0.0-release-candidate-9.3.3`
 * **Strict Widget Rule:** Do NOT use `StatefulWidget` ever. Use `StatelessWidget` exclusively. All state, animations, and lifecycle events (onInit, onClose) must be handled inside `GetxController` classes and observed in the UI using `Obx()`.
 * **GetX Features to Utilize:** Localization, Named Routing (`GetPages`), GetX Controllers, and Dependency Injection (`Get.put` / `Get.lazyPut`).
-* **Local Storage:** Use `get_storage` for persisting local preferences (Theme, Guest Cart, active Affiliate ID).
+* **Local Storage:** Use `get_storage` for persisting local preferences (Theme, Guest Cart, active Affiliate Code).
 
 ## 2. Branding & Assets
 * **Colors (Must be defined in a `constants.dart` file):**
@@ -25,7 +25,7 @@ Platform Targets: Web, Android, iOS
 * **Guest Cart vs. Authenticated Cart:**
   * If unauthenticated: Store cart items locally in `get_storage`.
   * On Firebase Login: Trigger a sync function in the AuthController. It must read the `get_storage` cart, loop through the items, upsert them into the Supabase `cart` table (linking them to the user's new ID), and then clear the local storage.
-* **Affiliate Deep Linking:** Use a deep-linking package (e.g., `app_links`). If the app is launched via a link matching `https://www.sora-eg.store/{uid}`, extract the `{uid}`, save it to `get_storage` as the `active_affiliate_id`, and apply it to the `order_master` table during the next checkout.
+* **Affiliate Deep Linking:** Affiliate links carry a public customizable code, never a Firebase UID. Product links use `https://www.sora-eg.store/item/<item_id>?ref=<affiliate_code>`. Save the code locally, synchronize it to the logged-in user, and let the Firebase-verified backend apply it during checkout.
 
 ## 4. Screen Definitions & Navigation
 
@@ -43,10 +43,10 @@ Platform Targets: Web, Android, iOS
 * **CartScreen:** Lists cart items (with increment/decrement/remove). Shows Subtotal and "Proceed to Checkout". If guest, tapping Checkout forces the Firebase Auth login flow.
 * **CheckoutScreen:**
   * Displays default address (from `address_book`), with a "Change" button.
-  * Promo code text field (validates against `vouchers` table).
+  * Promo code text field validates affiliate codes, vouchers, and promotions through the backend. Codes do not stack.
   * Order Summary (Total Price - Total Discount).
   * Payment: Strictly "Cash on Delivery" for now.
-  * Action: "Place Order" inserts to `order_master` (Status: 'Pending') and `order_detail`, then clears the cart.
+  * Action: "Place Order" calls the secure affiliate checkout Edge Function. The database transaction reloads prices, calculates discounts/commission, inserts the order and ledger row, and clears the cart.
 
 ### B. User Management Flow
 * **ProfileScreen:** Displays Avatar, Name, and Phone. Contains a list of navigation tiles:
@@ -62,9 +62,10 @@ Platform Targets: Web, Android, iOS
 ### C. Dashboard Screens (Role-Based)
 * **AdminDashboardScreen:** Overview metrics. Routes to `OrderManagementScreen` (to change orderStatus from Pending -> Shipped -> Delivered and trigger FCM notifications) and `AffiliateManagementScreen` (to approve payout_requests or onboard new affiliates).
 * **AffiliateDashboardScreen:**
-  * Displays total earnings calculated from referred orders.
-  * Displays their custom shareable link (`https://www.sora-eg.store/{uid}`).
-  * Includes a "Request Payout/Withdrawal" button which inserts a row into the `payout_requests` table with a 'Pending' status.
+  * Displays ledger-based total, pending, and available earnings.
+  * Lets the affiliate customize a unique public code while percentages remain admin-controlled.
+  * Displays their custom shareable link (`https://www.sora-eg.store/ref/<affiliate_code>`).
+  * Requests the server-calculated available balance; the client never submits a payout amount.
 
 
 

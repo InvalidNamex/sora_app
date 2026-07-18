@@ -2,16 +2,21 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 
+import '../../../core/models/affiliate_program_models.dart';
 import '../../../core/models/payout_request_model.dart';
 import '../../../core/models/user_model.dart';
+import '../../../core/services/affiliate_program_service.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 
 class AffiliateManagementController extends GetxController {
   static AffiliateManagementController get to => Get.find();
 
-  // ── Payouts tab ──────────────────────────────────────────────────────────
+  final pendingApplications = <AffiliateApplicationModel>[].obs;
+  final loadingApplications = true.obs;
   final pendingPayouts = <PayoutRequestModel>[].obs;
   final loadingPayouts = true.obs;
+  final reviewingId = Rxn<int>();
 
   // ── Users tab ────────────────────────────────────────────────────────────
   final searchResults = <UserModel>[].obs;
@@ -21,7 +26,7 @@ class AffiliateManagementController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    fetchPendingPayouts();
+    fetchQueues();
   }
 
   @override
@@ -32,35 +37,71 @@ class AffiliateManagementController extends GetxController {
 
   // ── Payouts ───────────────────────────────────────────────────────────────
 
-  Future<void> fetchPendingPayouts() async {
+  Future<void> fetchQueues() async {
+    loadingApplications.value = true;
     loadingPayouts.value = true;
     try {
-      final response = await SupabaseService.client
-          .from('payout_requests')
-          .select('*, users(name, phone)')
-          .eq('status', 'Pending')
-          .order('created_at', ascending: false);
-      pendingPayouts.value = (response as List)
-          .map((e) =>
-              PayoutRequestModel.fromJson(e as Map<String, dynamic>))
+      final data = await AffiliateProgramService.getAdminQueue();
+      pendingApplications.value = ((data['applications'] as List?) ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) => AffiliateApplicationModel.fromJson(
+              Map<String, dynamic>.from(row),
+            ),
+          )
           .toList();
+      pendingPayouts.value = ((data['payouts'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => PayoutRequestModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
     } finally {
+      loadingApplications.value = false;
       loadingPayouts.value = false;
     }
   }
 
-  Future<void> approveRequest(int id) async {
-    await SupabaseService.client
-        .from('payout_requests')
-        .update({'status': 'Approved'}).eq('id', id);
-    pendingPayouts.removeWhere((p) => p.id == id);
+  Future<void> reviewApplication(
+    int id, {
+    required bool approve,
+    String adminNote = '',
+  }) async {
+    reviewingId.value = id;
+    try {
+      await AffiliateProgramService.reviewApplication(
+        applicationId: id,
+        approve: approve,
+        adminNote: adminNote,
+      );
+      pendingApplications.removeWhere((application) => application.id == id);
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
+    } finally {
+      reviewingId.value = null;
+    }
   }
 
-  Future<void> rejectRequest(int id) async {
-    await SupabaseService.client
-        .from('payout_requests')
-        .update({'status': 'Rejected'}).eq('id', id);
-    pendingPayouts.removeWhere((p) => p.id == id);
+  Future<void> reviewPayout(
+    int id, {
+    required bool paid,
+    String? paymentReference,
+    String adminNote = '',
+  }) async {
+    reviewingId.value = id;
+    try {
+      await AffiliateProgramService.reviewPayout(
+        requestId: id,
+        paid: paid,
+        paymentReference: paymentReference,
+        adminNote: adminNote,
+      );
+      pendingPayouts.removeWhere((request) => request.id == id);
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
+    } finally {
+      reviewingId.value = null;
+    }
   }
 
   // ── User search ───────────────────────────────────────────────────────────
@@ -91,18 +132,22 @@ class AffiliateManagementController extends GetxController {
   }
 
   Future<void> toggleAffiliateStatus(int userId, bool current) async {
-    await SupabaseService.client
-        .from('users')
-        .update({'isAffiliate': !current}).eq('id', userId);
-    // Refresh the matching row in searchResults
-    final idx = searchResults.indexWhere((u) => u.id == userId);
-    if (idx != -1) {
-      final updated = UserModel.fromJson({
-        ...searchResults[idx].toJson(),
-        'isAffiliate': !current,
-      });
-      searchResults[idx] = updated;
-      searchResults.refresh();
+    try {
+      await AffiliateProgramService.setAffiliateStatus(
+        userId: userId,
+        isAffiliate: !current,
+      );
+      final idx = searchResults.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        final updated = UserModel.fromJson({
+          ...searchResults[idx].toJson(),
+          'isAffiliate': !current,
+        });
+        searchResults[idx] = updated;
+        searchResults.refresh();
+      }
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
     }
   }
 }

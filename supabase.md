@@ -54,7 +54,6 @@ implementation:
 * propertyDescription text
 * price float8
 * inStock bool default to true
-* affiliatePercentage float4 (nullable)
 
 **table cart:**
 * id int8 primary
@@ -63,11 +62,38 @@ implementation:
 * quantity int2
 * created_at timestamptz
 
+**table affiliate_codes:**
+* id int8 primary
+* affiliateID int8 unique foreign key to users.id
+* code text unique (4-20 uppercase letters/numbers)
+* customerDiscountPercentage numeric default 10
+* affiliateCommissionPercentage numeric default 15
+* isActive bool default true
+
+**table customer_affiliate_attributions:**
+* id int8 primary
+* userID int8 foreign key to users.id
+* affiliateCodeID int8 foreign key to affiliate_codes.id
+* source text (link/manual)
+* itemID int8 nullable
+* attributedAt timestamptz
+* expiresAt timestamptz
+* convertedOrderID int8 nullable
+* isActive bool
+
 **table order_master:**
 * id int8 primary
 * userID int8 foreign key to users.id
 * addressID int8 foreign key to address_book.id
 * affiliateID int8 foreign key to users.id (nullable)
+* affiliateCodeID int8 foreign key to affiliate_codes.id (nullable)
+* affiliateCode text snapshot (nullable)
+* affiliateSource text snapshot (nullable)
+* affiliateDiscountPercentage numeric snapshot (nullable)
+* affiliateCommissionPercentage numeric snapshot (nullable)
+* affiliateCommissionAmount numeric default 0
+* appliedPromoCode text snapshot (nullable)
+* promoType text snapshot (nullable)
 * totalPrice float8
 * totalDiscount float8
 * notes text
@@ -105,3 +131,16 @@ implementation:
 * amount float8
 * status text default to 'Pending' (Options: Pending, Approved, Rejected)
 * created_at timestamptzs
+
+**table affiliate_commissions:**
+* id int8 primary
+* affiliateID int8 foreign key to users.id
+* orderID int8 unique foreign key to order_master.id
+* affiliateCodeID int8 foreign key to affiliate_codes.id
+* source text (link/manual)
+* eligibleSubtotal numeric
+* customerDiscountAmount numeric
+* commissionPercentage numeric snapshot
+* amount numeric snapshot
+* status text (pending/available/processing/paid/void)
+* payoutRequestID int8 nullable

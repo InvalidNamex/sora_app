@@ -16,6 +16,8 @@ class OrderWithUser {
   final String userPhone;
   final double totalPrice;
   final double totalDiscount;
+  final String? affiliateCode;
+  final double affiliateCommissionAmount;
   final String address;
   final String? notes;
   final String checkoutPhone;
@@ -30,6 +32,8 @@ class OrderWithUser {
     required this.userPhone,
     required this.totalPrice,
     required this.totalDiscount,
+    this.affiliateCode,
+    this.affiliateCommissionAmount = 0,
     required this.address,
     this.notes,
     required this.checkoutPhone,
@@ -45,6 +49,9 @@ class OrderWithUser {
       userPhone: (user['phone'] as String?) ?? '',
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0,
       totalDiscount: (json['totalDiscount'] as num?)?.toDouble() ?? 0,
+      affiliateCode: json['affiliateCode'] as String?,
+      affiliateCommissionAmount:
+          (json['affiliateCommissionAmount'] as num?)?.toDouble() ?? 0,
       address: (json['address'] as String?) ?? '',
       notes: json['notes'] as String?,
       checkoutPhone: (json['phoneNumber'] as String?) ?? '',

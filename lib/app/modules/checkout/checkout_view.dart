@@ -395,6 +395,7 @@ class _PromoCard extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: c.promoCtrl,
+              onChanged: c.onPromoChanged,
               textDirection: TextDirection.ltr,
               decoration: InputDecoration(
                 hintText: 'enter_promo'.tr,

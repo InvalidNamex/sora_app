@@ -38,7 +38,8 @@ class AppConstants {
   // ── Storage keys (get_storage) ────────────────────────────────────
   static const String kThemeMode = 'theme_mode';
   static const String kGuestCart = 'guest_cart';
-  static const String kActiveAffiliateId = 'active_affiliate_id';
+  static const String kActiveAffiliateCode = 'active_affiliate_code';
+  static const String kActiveAffiliateSource = 'active_affiliate_source';
   static const String kLocale = 'locale';
   static const String kCachedBanners = 'cached_banners';
   static const String kCachedCategories = 'cached_categories';

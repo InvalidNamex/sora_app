@@ -11,6 +11,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/deep_link_service.dart';
+import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../navigation/nav_controller.dart';
@@ -156,6 +157,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
             .maybeSingle();
         if (result != null) {
           currentUser.value = UserModel.fromJson(result);
+          unawaited(AffiliateProgramService.syncPendingAttribution());
         }
       } catch (e) {
         debugPrint('[AuthController] Failed to restore user from Supabase: $e');
@@ -453,6 +455,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     final model = await _upsertSupabaseUser(firebaseUser);
     await _syncGuestCart(model.id);
     currentUser.value = model;
+    unawaited(AffiliateProgramService.syncPendingAttribution());
     unawaited(_registerFcmForCurrentUser());
     final openedPendingRoute = await DeepLinkService.to.openPendingAuthRoute();
     if (!openedPendingRoute && Get.currentRoute != Routes.home) {
@@ -785,6 +788,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       await _auth.signOut();
       await SupabaseService.client.auth.signOut();
       currentUser.value = null;
+      AffiliateProgramService.clearSessionCache();
 
       // Return to a safe default tab after logout.
       if (Get.isRegistered<NavController>()) {

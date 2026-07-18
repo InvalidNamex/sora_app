@@ -11,6 +11,7 @@ void main() {
         home: const Scaffold(body: SizedBox.shrink()),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.byType(Scaffold), findsOneWidget);
   });

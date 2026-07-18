@@ -1,19 +1,23 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/affiliate_program_models.dart';
+import '../../../core/models/payout_request_model.dart';
 import '../../../core/utils/responsive.dart';
 import 'affiliate_management_controller.dart';
 
-/// Affiliate management — two tabs: Payouts and Users.
+/// Affiliate management: applications, payouts, and manual user controls.
 class AffiliateManagementView extends GetView<AffiliateManagementController> {
   const AffiliateManagementView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text('affiliate_management'.tr),
@@ -21,6 +25,7 @@ class AffiliateManagementView extends GetView<AffiliateManagementController> {
             labelColor: AppConstants.darkBeige,
             indicatorColor: AppConstants.darkBeige,
             tabs: [
+              Tab(text: 'applications'.tr),
               Tab(text: 'payouts'.tr),
               Tab(text: 'users'.tr),
             ],
@@ -29,6 +34,7 @@ class AffiliateManagementView extends GetView<AffiliateManagementController> {
         body: DesktopConstraint(
           child: TabBarView(
             children: [
+              _ApplicationsTab(controller: controller),
               _PayoutsTab(controller: controller),
               _UsersTab(controller: controller),
             ],
@@ -36,6 +42,118 @@ class AffiliateManagementView extends GetView<AffiliateManagementController> {
         ),
       ),
     );
+  }
+}
+
+class _ApplicationsTab extends StatelessWidget {
+  const _ApplicationsTab({required this.controller});
+
+  final AffiliateManagementController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.loadingApplications.value) {
+        return const Center(
+          child: CircularProgressIndicator(color: AppConstants.darkBeige),
+        );
+      }
+      if (controller.pendingApplications.isEmpty) {
+        return Center(child: Text('no_pending_applications'.tr));
+      }
+      return RefreshIndicator(
+        color: AppConstants.darkBeige,
+        onRefresh: controller.fetchQueues,
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: controller.pendingApplications.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final application = controller.pendingApplications[index];
+            final isReviewing = controller.reviewingId.value == application.id;
+            return Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            application.userName.isEmpty
+                                ? application.userPhone
+                                : application.userName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          application.preferredCode,
+                          textDirection: ui.TextDirection.ltr,
+                          style: const TextStyle(
+                            color: AppConstants.darkBeige,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (application.userPhone.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(application.userPhone),
+                    ],
+                    const SizedBox(height: 10),
+                    Text(application.message),
+                    const SizedBox(height: 8),
+                    Text(
+                      DateFormat.yMMMd().add_Hm().format(application.createdAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.close),
+                            label: Text('reject'.tr),
+                            onPressed: isReviewing
+                                ? null
+                                : () => _showApplicationReview(
+                                    context,
+                                    controller,
+                                    application,
+                                    approve: false,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check),
+                            label: Text('approve'.tr),
+                            onPressed: isReviewing
+                                ? null
+                                : () => _showApplicationReview(
+                                    context,
+                                    controller,
+                                    application,
+                                    approve: true,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    });
   }
 }
 
@@ -50,25 +168,27 @@ class _PayoutsTab extends StatelessWidget {
     return Obx(() {
       if (controller.loadingPayouts.value) {
         return const Center(
-            child:
-                CircularProgressIndicator(color: AppConstants.darkBeige));
+          child: CircularProgressIndicator(color: AppConstants.darkBeige),
+        );
       }
       if (controller.pendingPayouts.isEmpty) {
         return Center(child: Text('no_pending_payouts'.tr));
       }
       return RefreshIndicator(
         color: AppConstants.darkBeige,
-        onRefresh: controller.fetchPendingPayouts,
+        onRefresh: controller.fetchQueues,
         child: ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: controller.pendingPayouts.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, i) {
             final req = controller.pendingPayouts[i];
+            final isReviewing = controller.reviewingId.value == req.id;
             return Card(
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -77,47 +197,76 @@ class _PayoutsTab extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(req.affiliateName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15)),
+                        Text(
+                          req.affiliateName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                         Text(
                           '${AppConstants.currency} ${req.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
-                              color: AppConstants.darkBeige,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15),
+                            color: AppConstants.darkBeige,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(req.affiliatePhone,
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6))),
                     Text(
-                        DateFormat.yMMMd().format(req.createdAt),
-                        style: const TextStyle(fontSize: 12)),
+                      req.affiliatePhone,
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    if (req.payoutMethod != null ||
+                        req.payoutAccount != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_payoutMethodLabel(req.payoutMethod)}'
+                        ' · ${req.payoutAccount ?? '-'}',
+                        textDirection: ui.TextDirection.ltr,
+                      ),
+                    ],
+                    Text(
+                      DateFormat.yMMMd().format(req.createdAt),
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () =>
-                                controller.rejectRequest(req.id),
+                            onPressed: isReviewing
+                                ? null
+                                : () => _showPayoutReview(
+                                    context,
+                                    controller,
+                                    req,
+                                    paid: false,
+                                  ),
                             style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.redAccent),
+                              foregroundColor: Colors.redAccent,
+                            ),
                             child: Text('reject'.tr),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () =>
-                                controller.approveRequest(req.id),
-                            child: Text('approve'.tr),
+                            onPressed: isReviewing
+                                ? null
+                                : () => _showPayoutReview(
+                                    context,
+                                    controller,
+                                    req,
+                                    paid: true,
+                                  ),
+                            child: Text('mark_paid'.tr),
                           ),
                         ),
                       ],
@@ -131,6 +280,133 @@ class _PayoutsTab extends StatelessWidget {
       );
     });
   }
+}
+
+String _payoutMethodLabel(String? method) {
+  switch (method) {
+    case 'mobile_wallet':
+      return 'mobile_wallet'.tr;
+    case 'instapay':
+      return 'instapay'.tr;
+    case 'bank_transfer':
+      return 'bank_transfer'.tr;
+    default:
+      return 'payout_method'.tr;
+  }
+}
+
+Future<void> _showApplicationReview(
+  BuildContext context,
+  AffiliateManagementController controller,
+  AffiliateApplicationModel application, {
+  required bool approve,
+}) async {
+  final noteCtrl = TextEditingController();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(approve ? 'approve_application'.tr : 'reject_application'.tr),
+      content: TextField(
+        controller: noteCtrl,
+        maxLines: 3,
+        decoration: InputDecoration(
+          labelText: 'admin_note'.tr,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text('cancel'.tr),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(approve ? 'approve'.tr : 'reject'.tr),
+        ),
+      ],
+    ),
+  );
+  final note = noteCtrl.text;
+  noteCtrl.dispose();
+  if (confirmed != true) return;
+  await controller.reviewApplication(
+    application.id,
+    approve: approve,
+    adminNote: note,
+  );
+}
+
+Future<void> _showPayoutReview(
+  BuildContext context,
+  AffiliateManagementController controller,
+  PayoutRequestModel request, {
+  required bool paid,
+}) async {
+  final referenceCtrl = TextEditingController();
+  final noteCtrl = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(paid ? 'mark_paid'.tr : 'reject_payout'.tr),
+      content: Form(
+        key: formKey,
+        child: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (paid)
+                TextFormField(
+                  controller: referenceCtrl,
+                  textDirection: ui.TextDirection.ltr,
+                  decoration: InputDecoration(
+                    labelText: 'payment_reference'.tr,
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (value) => (value?.trim().length ?? 0) < 3
+                      ? 'payment_reference_required'.tr
+                      : null,
+                ),
+              if (paid) const SizedBox(height: 12),
+              TextField(
+                controller: noteCtrl,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'admin_note'.tr,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text('cancel'.tr),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (paid && formKey.currentState?.validate() != true) return;
+            Navigator.of(context).pop(true);
+          },
+          child: Text(paid ? 'mark_paid'.tr : 'reject'.tr),
+        ),
+      ],
+    ),
+  );
+  final reference = referenceCtrl.text;
+  final note = noteCtrl.text;
+  referenceCtrl.dispose();
+  noteCtrl.dispose();
+  if (confirmed != true) return;
+  await controller.reviewPayout(
+    request.id,
+    paid: paid,
+    paymentReference: paid ? reference : null,
+    adminNote: note,
+  );
 }
 
 // ── Users tab ─────────────────────────────────────────────────────────────────
@@ -154,7 +430,8 @@ class _UsersTab extends StatelessWidget {
               hintText: 'search_by_phone'.tr,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -162,17 +439,14 @@ class _UsersTab extends StatelessWidget {
           child: Obx(() {
             if (controller.loadingUsers.value) {
               return const Center(
-                  child: CircularProgressIndicator(
-                      color: AppConstants.darkBeige));
+                child: CircularProgressIndicator(color: AppConstants.darkBeige),
+              );
             }
             if (controller.searchResults.isEmpty) {
               return Center(
                 child: Text(
-                  _searchCtrl.text.isEmpty
-                      ? 'search_hint'.tr
-                      : 'no_results'.tr,
-                  style:
-                      TextStyle(color: AppConstants.mediumBeige),
+                  _searchCtrl.text.isEmpty ? 'search_hint'.tr : 'no_results'.tr,
+                  style: TextStyle(color: AppConstants.mediumBeige),
                 ),
               );
             }
@@ -188,7 +462,9 @@ class _UsersTab extends StatelessWidget {
                     value: user.isAffiliate,
                     activeThumbColor: AppConstants.darkBeige,
                     onChanged: (_) => controller.toggleAffiliateStatus(
-                        user.id, user.isAffiliate),
+                      user.id,
+                      user.isAffiliate,
+                    ),
                   ),
                 );
               },

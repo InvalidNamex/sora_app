@@ -157,6 +157,19 @@ class _OrderRow extends StatelessWidget {
                     Text(order.notes!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
                     const SizedBox(height: 8),
                   ],
+                  if (order.affiliateCode?.isNotEmpty == true) ...[
+                    Text(
+                      'Affiliate: ${order.affiliateCode} · '
+                      '${AppConstants.currency} '
+                      '${order.affiliateCommissionAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppConstants.darkBeige,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

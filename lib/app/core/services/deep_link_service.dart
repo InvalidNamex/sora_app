@@ -3,17 +3,16 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:get_storage_wasm/get_storage_wasm.dart';
 
+import '../../modules/auth/auth_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
-import '../constants/app_constants.dart';
 import '../../routes/app_pages.dart';
+import 'affiliate_program_service.dart';
 
 class DeepLinkService extends GetxService {
   static DeepLinkService get to => Get.find();
 
   final _appLinks = AppLinks();
-  final _storage = GetStorage();
 
   StreamSubscription<Uri>? _linkSubscription;
   Future<void>? _initialLinkCapture;
@@ -107,7 +106,10 @@ class DeepLinkService extends GetxService {
       case 'item':
         final itemId = _idFrom(segments, uri);
         if (itemId == null) return false;
-        await _captureAffiliate(uri.queryParameters['ref']);
+        await AffiliateProgramService.captureLinkCode(
+          uri.queryParameters['ref'],
+          itemId: itemId,
+        );
         await _openRoute(Routes.itemPath(itemId));
         return true;
       case 'orders':
@@ -116,20 +118,31 @@ class DeepLinkService extends GetxService {
         await _openRoute(Routes.orderDetailPath(orderId));
         return true;
       case 'ref':
-        final uid = segments.length > 1 ? segments[1].trim() : '';
-        if (uid.isEmpty) return false;
-        await _captureAffiliate(uid);
+        final code = segments.length > 1 ? segments[1].trim() : '';
+        if (code.isEmpty) return false;
+        await AffiliateProgramService.captureLinkCode(code);
         await _openHome();
+        return true;
+      case 'admin-orders':
+        if (AuthController.to.currentUser.value?.isAdmin != true) return false;
+        await _openRoute(Routes.adminOrders);
+        return true;
+      case 'admin-affiliates':
+        if (AuthController.to.currentUser.value?.isAdmin != true) return false;
+        await _openRoute(Routes.adminAffiliates);
+        return true;
+      case 'affiliate':
+        if (AuthController.to.currentUser.value?.isAffiliate != true) {
+          await AuthController.to.refreshCurrentUser();
+        }
+        if (AuthController.to.currentUser.value?.isAffiliate != true) {
+          return false;
+        }
+        await _openRoute(Routes.affiliateDashboard);
         return true;
       default:
         return false;
     }
-  }
-
-  Future<void> _captureAffiliate(String? value) async {
-    final uid = value?.trim() ?? '';
-    if (uid.isEmpty) return;
-    await _storage.write(AppConstants.kActiveAffiliateId, uid);
   }
 
   bool _isSupportedUri(Uri uri) {

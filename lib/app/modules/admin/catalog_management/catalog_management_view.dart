@@ -277,8 +277,8 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<int>(
-                value: selectedCategoryId,
+                DropdownButtonFormField<int>(
+                  initialValue: selectedCategoryId,
                 decoration: const InputDecoration(labelText: 'Category'),
                 items: controller.categories.map((cat) {
                   return DropdownMenuItem<int>(
@@ -572,10 +572,6 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
     final descEnCtrl = TextEditingController(
       text: isEdit ? property.descEn : '',
     );
-    final affCtrl = TextEditingController(
-      text: isEdit ? (property.affiliatePercentage?.toString() ?? '') : '',
-    );
-
     XFile? pickedImage;
     bool isUploading = false;
 
@@ -605,12 +601,6 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
               TextField(
                 controller: descEnCtrl,
                 decoration: const InputDecoration(labelText: 'Description (English)'),
-              ),
-              TextField(
-                controller: affCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Affiliate Percentage',
-                ),
               ),
               const SizedBox(height: 10),
               if (pickedImage != null)
@@ -667,7 +657,6 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
                     'image': finalImageUrl,
                     'PropertyDescription': descCtrl.text,
                     'PropertyDescriptionEN': descEnCtrl.text,
-                    'affiliatePercentage': double.tryParse(affCtrl.text),
                   };
 
                   if (isEdit) {

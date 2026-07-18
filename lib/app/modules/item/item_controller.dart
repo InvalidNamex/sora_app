@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
+import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/share_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/app_snackbar.dart';
@@ -93,15 +94,18 @@ class ItemController extends GetxController {
     if (currentItem == null) return;
 
     final user = AuthController.to.currentUser.value;
-    final affiliateUid = user?.isAffiliate == true ? user?.uid : null;
 
     try {
+      final affiliateCode = user?.isAffiliate == true
+          ? (await AffiliateProgramService.getMyProfile()).code
+          : null;
+      if (!context.mounted) return;
       await ShareService.shareItem(
         context: context,
         itemId: currentItem.id,
         itemName: currentItem.itemName,
         message: 'share_item_message'.trParams({'item': currentItem.itemName}),
-        affiliateUid: affiliateUid,
+        affiliateCode: affiliateCode,
       );
     } catch (e) {
       debugPrint('[ItemController] shareItem error: $e');
