@@ -13,6 +13,8 @@ import 'link_navigation_service.dart';
 import 'supabase_service.dart';
 
 class InAppMessagingService extends GetxService with WidgetsBindingObserver {
+  static InAppMessagingService get to => Get.find();
+
   static const _seenStorageKey = 'seen_in_app_message_ids';
 
   final _storage = GetStorage();
@@ -52,6 +54,8 @@ class InAppMessagingService extends GetxService with WidgetsBindingObserver {
       unawaited(_presentNext());
     }
   }
+
+  Future<void> refreshNow() => _refresh();
 
   void _subscribe() {
     final channel = SupabaseService.client.channel('sora-in-app-messages');
@@ -107,6 +111,10 @@ class InAppMessagingService extends GetxService with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('[InAppMessagingService] refresh skipped: $e');
+    } finally {
+      if (_isForeground) {
+        _scheduleRefresh(const Duration(seconds: 45));
+      }
     }
   }
 

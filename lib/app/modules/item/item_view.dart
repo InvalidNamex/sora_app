@@ -22,9 +22,30 @@ class ItemView extends GetView<ItemController> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const BackButtonIcon(),
+          icon: CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.surface.withAlpha(150),
+
+            child: const BackButtonIcon()),
           onPressed: () => _handleBack(context),
         ),
+        actions: [
+          Obx(() {
+            final canShare =
+                !controller.isLoading.value && controller.item.value != null;
+            return Builder(
+              builder: (shareContext) => IconButton(
+                tooltip: 'share'.tr,
+                icon: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.surface.withAlpha(150),
+                  radius: 20,
+                  child: const Icon(Icons.share_outlined)),
+                onPressed: canShare
+                    ? () => controller.shareItem(shareContext)
+                    : null,
+              ),
+            );
+          }),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),

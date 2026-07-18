@@ -193,123 +193,257 @@ class _InAppMessagingComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = controller.inAppType.value;
-    final isImage = type == InAppMessageType.image;
-    final isCard = type == InAppMessageType.card;
-    final hasButton = isCard || type == InAppMessageType.modal;
+    return Obx(() {
+      final type = controller.inAppType.value;
+      final isImage = type == InAppMessageType.image;
+      final isCard = type == InAppMessageType.card;
+      final hasButton = isCard || type == InAppMessageType.modal;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Format',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<InAppMessageType>(
-            showSelectedIcon: false,
-            segments: InAppMessageType.values
-                .map(
-                  (messageType) => ButtonSegment(
-                    value: messageType,
-                    icon: Icon(messageType.icon, size: 18),
-                    label: Text(messageType.label),
-                  ),
-                )
-                .toList(),
-            selected: {type},
-            onSelectionChanged: (selection) {
-              controller.inAppType.value = selection.first;
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (!isImage) ...[
-          TextField(
-            controller: controller.inAppTitleCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Header',
-              hintText: 'A limited offer for you',
-            ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Format',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: controller.inAppBodyCtrl,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Message',
-              hintText: 'Discover this week’s featured collection.',
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<InAppMessageType>(
+              showSelectedIcon: false,
+              segments: InAppMessageType.values
+                  .map(
+                    (messageType) => ButtonSegment(
+                      value: messageType,
+                      icon: Icon(messageType.icon, size: 18),
+                      label: Text(messageType.label),
+                    ),
+                  )
+                  .toList(),
+              selected: {type},
+              onSelectionChanged: (selection) {
+                controller.inAppType.value = selection.first;
+              },
             ),
           ),
-          const SizedBox(height: 8),
-        ],
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller.inAppImageUrlCtrl,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  labelText: isImage ? 'Image URL' : 'Image URL (optional)',
-                  hintText: 'https://...',
-                ),
+          const SizedBox(height: 16),
+          if (!isImage) ...[
+            TextField(
+              controller: controller.inAppTitleCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Header',
+                hintText: 'A limited offer for you',
               ),
             ),
-            const SizedBox(width: 8),
-            FilledButton.tonalIcon(
-              onPressed: controller.isUploadingInAppImage.value
-                  ? null
-                  : controller.pickInAppImage,
-              icon: controller.isUploadingInAppImage.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.upload_outlined),
-              label: const Text('Upload'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller.inAppBodyCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                hintText: 'Discover this week’s featured collection.',
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller.inAppImageUrlCtrl,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: isImage ? 'Image URL' : 'Image URL (optional)',
+                    hintText: 'https://...',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: controller.isUploadingInAppImage.value
+                    ? null
+                    : controller.pickInAppImage,
+                icon: controller.isUploadingInAppImage.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_outlined),
+                label: const Text('Upload'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (!isImage) ...[
+            const Text(
+              'Appearance',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final fields = [
+                  _HexColorField(
+                    controller: controller.inAppBackgroundColorCtrl,
+                    label: 'Background',
+                    fallback: Colors.white,
+                  ),
+                  _HexColorField(
+                    controller: controller.inAppTextColorCtrl,
+                    label: 'Text',
+                    fallback: const Color(0xFF171717),
+                  ),
+                  if (hasButton)
+                    _HexColorField(
+                      controller: controller.inAppButtonColorCtrl,
+                      label: 'Button',
+                      fallback: AppConstants.darkBeige,
+                    ),
+                  if (hasButton)
+                    _HexColorField(
+                      controller: controller.inAppButtonTextColorCtrl,
+                      label: 'Button text',
+                      fallback: Colors.white,
+                    ),
+                ];
+
+                if (constraints.maxWidth < 560) {
+                  return Column(
+                    children: fields
+                        .map(
+                          (field) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: field,
+                          ),
+                        )
+                        .toList(),
+                  );
+                }
+
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: fields
+                      .map(
+                        (field) => SizedBox(
+                          width: (constraints.maxWidth - 8) / 2,
+                          child: field,
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+          const Text(
+            'Action',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (hasButton) ...[
+            TextField(
+              controller: controller.inAppPrimaryButtonCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Primary button text (optional)',
+                hintText: 'Shop now',
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          TextField(
+            controller: controller.inAppPrimaryUrlCtrl,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: InputDecoration(
+              labelText: hasButton
+                  ? 'Primary destination URL'
+                  : 'Tap destination URL (optional)',
+              hintText: '/item/1 or https://instagram.com/p/example',
+            ),
+          ),
+          if (isCard) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller.inAppSecondaryButtonCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Secondary button text',
+                hintText: 'Not now',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller.inAppSecondaryUrlCtrl,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'Secondary destination URL (optional)',
+                hintText: 'Leave empty to dismiss',
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        if (!isImage) ...[
+          const SizedBox(height: 16),
           const Text(
-            'Appearance',
+            'Delivery',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
               final fields = [
-                _HexColorField(
-                  controller: controller.inAppBackgroundColorCtrl,
-                  label: 'Background',
-                  fallback: Colors.white,
+                DropdownButtonFormField<String>(
+                  initialValue: controller.inAppPlatform.value,
+                  decoration: const InputDecoration(labelText: 'Platform'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'all',
+                      child: Text('All platforms'),
+                    ),
+                    DropdownMenuItem(value: 'android', child: Text('Android')),
+                    DropdownMenuItem(value: 'ios', child: Text('iPhone')),
+                    DropdownMenuItem(value: 'web', child: Text('Web')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) controller.inAppPlatform.value = value;
+                  },
                 ),
-                _HexColorField(
-                  controller: controller.inAppTextColorCtrl,
-                  label: 'Text',
-                  fallback: const Color(0xFF171717),
+                DropdownButtonFormField<String>(
+                  initialValue: controller.inAppLanguage.value,
+                  decoration: const InputDecoration(labelText: 'Language'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'all',
+                      child: Text('All languages'),
+                    ),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'ar', child: Text('Arabic')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) controller.inAppLanguage.value = value;
+                  },
                 ),
-                if (hasButton)
-                  _HexColorField(
-                    controller: controller.inAppButtonColorCtrl,
-                    label: 'Button',
-                    fallback: AppConstants.darkBeige,
-                  ),
-                if (hasButton)
-                  _HexColorField(
-                    controller: controller.inAppButtonTextColorCtrl,
-                    label: 'Button text',
-                    fallback: Colors.white,
-                  ),
+                DropdownButtonFormField<int>(
+                  initialValue: controller.inAppDurationDays.value,
+                  decoration: const InputDecoration(labelText: 'Expires'),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('After 1 day')),
+                    DropdownMenuItem(value: 3, child: Text('After 3 days')),
+                    DropdownMenuItem(value: 7, child: Text('After 7 days')),
+                    DropdownMenuItem(value: 30, child: Text('After 30 days')),
+                    DropdownMenuItem(value: 0, child: Text('Never')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.inAppDurationDays.value = value;
+                    }
+                  },
+                ),
               ];
 
-              if (constraints.maxWidth < 560) {
+              if (constraints.maxWidth < 680) {
                 return Column(
                   children: fields
                       .map(
@@ -322,181 +456,57 @@ class _InAppMessagingComposer extends StatelessWidget {
                 );
               }
 
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: fields
                     .map(
-                      (field) => SizedBox(
-                        width: (constraints.maxWidth - 8) / 2,
-                        child: field,
+                      (field) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 8),
+                          child: field,
+                        ),
                       ),
                     )
                     .toList(),
               );
             },
           ),
-          const SizedBox(height: 8),
-        ],
-        const Text(
-          'Action',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        if (hasButton) ...[
-          TextField(
-            controller: controller.inAppPrimaryButtonCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Primary button text (optional)',
-              hintText: 'Shop now',
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: controller.inAppDisplayOnce.value,
+            onChanged: (value) => controller.inAppDisplayOnce.value = value,
+            title: const Text('Show once per device'),
+            subtitle: const Text(
+              'When disabled, the message can appear once each app session.',
             ),
           ),
           const SizedBox(height: 8),
-        ],
-        TextField(
-          controller: controller.inAppPrimaryUrlCtrl,
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          decoration: InputDecoration(
-            labelText: hasButton
-                ? 'Primary destination URL'
-                : 'Tap destination URL (optional)',
-            hintText: '/item/1 or https://instagram.com/p/example',
-          ),
-        ),
-        if (isCard) ...[
-          const SizedBox(height: 8),
-          TextField(
-            controller: controller.inAppSecondaryButtonCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Secondary button text',
-              hintText: 'Not now',
-            ),
+          const Text(
+            'Preview',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: controller.inAppSecondaryUrlCtrl,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Secondary destination URL (optional)',
-              hintText: 'Leave empty to dismiss',
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-        const Text(
-          'Delivery',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final fields = [
-              DropdownButtonFormField<String>(
-                initialValue: controller.inAppPlatform.value,
-                decoration: const InputDecoration(labelText: 'Platform'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All platforms')),
-                  DropdownMenuItem(value: 'android', child: Text('Android')),
-                  DropdownMenuItem(value: 'ios', child: Text('iPhone')),
-                  DropdownMenuItem(value: 'web', child: Text('Web')),
-                ],
-                onChanged: (value) {
-                  if (value != null) controller.inAppPlatform.value = value;
-                },
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: controller.inAppLanguage.value,
-                decoration: const InputDecoration(labelText: 'Language'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All languages')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                  DropdownMenuItem(value: 'ar', child: Text('Arabic')),
-                ],
-                onChanged: (value) {
-                  if (value != null) controller.inAppLanguage.value = value;
-                },
-              ),
-              DropdownButtonFormField<int>(
-                initialValue: controller.inAppDurationDays.value,
-                decoration: const InputDecoration(labelText: 'Expires'),
-                items: const [
-                  DropdownMenuItem(value: 1, child: Text('After 1 day')),
-                  DropdownMenuItem(value: 3, child: Text('After 3 days')),
-                  DropdownMenuItem(value: 7, child: Text('After 7 days')),
-                  DropdownMenuItem(value: 30, child: Text('After 30 days')),
-                  DropdownMenuItem(value: 0, child: Text('Never')),
-                ],
-                onChanged: (value) {
-                  if (value != null) controller.inAppDurationDays.value = value;
-                },
-              ),
-            ];
-
-            if (constraints.maxWidth < 680) {
-              return Column(
-                children: fields
-                    .map(
-                      (field) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: field,
-                      ),
+          _CampaignPreview(controller: controller),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: controller.isPublishingInApp.value
+                  ? null
+                  : controller.publishInAppMessage,
+              icon: controller.isPublishingInApp.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                    .toList(),
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: fields
-                  .map(
-                    (field) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
-                        child: field,
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
-        ),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          value: controller.inAppDisplayOnce.value,
-          onChanged: (value) => controller.inAppDisplayOnce.value = value,
-          title: const Text('Show once per device'),
-          subtitle: const Text(
-            'When disabled, the message can appear once each app session.',
+                  : const Icon(Icons.publish_outlined),
+              label: const Text('Publish In-App Message'),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Preview',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        _CampaignPreview(controller: controller),
-        const SizedBox(height: 14),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: controller.isPublishingInApp.value
-                ? null
-                : controller.publishInAppMessage,
-            icon: controller.isPublishingInApp.value
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.publish_outlined),
-            label: const Text('Publish In-App Message'),
-          ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 

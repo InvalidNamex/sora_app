@@ -1,9 +1,12 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
+import '../../core/services/share_service.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/app_snackbar.dart';
+import '../auth/auth_controller.dart';
 
 class ItemController extends GetxController {
   static ItemController get to => Get.find();
@@ -84,6 +87,31 @@ class ItemController extends GetxController {
   Future<void> refreshItem() => _fetchItem();
 
   void selectProperty(int index) => selectedPropertyIndex.value = index;
+
+  Future<void> shareItem(BuildContext context) async {
+    final currentItem = item.value;
+    if (currentItem == null) return;
+
+    final user = AuthController.to.currentUser.value;
+    final affiliateUid = user?.isAffiliate == true ? user?.uid : null;
+
+    try {
+      await ShareService.shareItem(
+        context: context,
+        itemId: currentItem.id,
+        itemName: currentItem.itemName,
+        message: 'share_item_message'.trParams({'item': currentItem.itemName}),
+        affiliateUid: affiliateUid,
+      );
+    } catch (e) {
+      debugPrint('[ItemController] shareItem error: $e');
+      AppSnackbar.show(
+        'error'.tr,
+        'share_failed'.tr,
+        type: AppSnackbarType.error,
+      );
+    }
+  }
 
   Future<void> pulseCartFab() async {
     cartFabPulse.value = true;

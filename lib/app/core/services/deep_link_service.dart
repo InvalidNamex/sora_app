@@ -107,6 +107,7 @@ class DeepLinkService extends GetxService {
       case 'item':
         final itemId = _idFrom(segments, uri);
         if (itemId == null) return false;
+        await _captureAffiliate(uri.queryParameters['ref']);
         await _openRoute(Routes.itemPath(itemId));
         return true;
       case 'orders':
@@ -117,12 +118,18 @@ class DeepLinkService extends GetxService {
       case 'ref':
         final uid = segments.length > 1 ? segments[1].trim() : '';
         if (uid.isEmpty) return false;
-        await _storage.write(AppConstants.kActiveAffiliateId, uid);
+        await _captureAffiliate(uid);
         await _openHome();
         return true;
       default:
         return false;
     }
+  }
+
+  Future<void> _captureAffiliate(String? value) async {
+    final uid = value?.trim() ?? '';
+    if (uid.isEmpty) return;
+    await _storage.write(AppConstants.kActiveAffiliateId, uid);
   }
 
   bool _isSupportedUri(Uri uri) {

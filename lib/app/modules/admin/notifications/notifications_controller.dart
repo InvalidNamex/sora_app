@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/in_app_message_model.dart';
 import '../../../core/models/item_model.dart';
+import '../../../core/services/in_app_messaging_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 
@@ -319,6 +322,9 @@ class NotificationsController extends GetxController {
         'The in-app message is now live for active users.',
         type: AppSnackbarType.success,
       );
+      if (Get.isRegistered<InAppMessagingService>()) {
+        unawaited(InAppMessagingService.to.refreshNow());
+      }
     } catch (e) {
       AppSnackbar.show(
         'Publish failed',
