@@ -130,7 +130,8 @@ class NotificationService extends GetxService {
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     debugPrint(
       '[NotificationService] Foreground message received: '
-      '${message.messageId ?? 'no-message-id'}',
+      '${message.messageId ?? 'no-message-id'} '
+      'dataKeys=${message.data.keys.join(',')}',
     );
 
     if (defaultTargetPlatform == TargetPlatform.iOS ||

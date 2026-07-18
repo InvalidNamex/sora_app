@@ -1,5 +1,6 @@
 import Flutter
 import FirebaseAuth
+import FirebaseCore
 import FirebaseMessaging
 import UIKit
 
@@ -9,6 +10,9 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+#if DEBUG
+    FirebaseConfiguration.shared.setLoggerLevel(.debug)
+#endif
     application.registerForRemoteNotifications()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -23,7 +27,16 @@ import UIKit
   ) {
     Messaging.messaging().apnsToken = deviceToken
     Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+    NSLog("[SoraAuth] APNs token registered and passed to Firebase Auth.")
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    NSLog("[SoraAuth] Failed to register APNs token: \(error.localizedDescription)")
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 
   override func application(
@@ -32,9 +45,11 @@ import UIKit
     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
     if Auth.auth().canHandleNotification(notification) {
+      NSLog("[SoraAuth] Firebase Auth handled remote notification.")
       completionHandler(.noData)
       return
     }
+    NSLog("[SoraAuth] Remote notification was not handled by Firebase Auth. keys=\(notification.keys)")
     super.application(
       application,
       didReceiveRemoteNotification: notification,
@@ -48,8 +63,10 @@ import UIKit
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
     if Auth.auth().canHandle(url) {
+      NSLog("[SoraAuth] Firebase Auth handled URL callback: \(url.scheme ?? "no-scheme")")
       return true
     }
+    NSLog("[SoraAuth] URL callback was not handled by Firebase Auth: \(url.scheme ?? "no-scheme")")
     return super.application(app, open: url, options: options)
   }
 }

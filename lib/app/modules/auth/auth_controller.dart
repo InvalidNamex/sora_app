@@ -28,9 +28,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   static AuthController get to => Get.find();
 
   final _auth = fb.FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn(
-    serverClientId: AppConstants.googleWebClientId,
-  );
+  GoogleSignIn? _googleSignIn;
   final _storage = GetStorage();
 
   final currentUser = Rxn<UserModel>();
@@ -39,12 +37,14 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   final otpStatusMessage = ''.obs;
   final otpTimedOut = false.obs;
   final resendSecondsLeft = 0.obs;
+  fb.ConfirmationResult? _webPhoneConfirmationResult;
   String? _pendingPhone;
   int? _resendToken;
   Timer? _resendTimer;
   StreamSubscription<String>? _fcmTokenRefreshSub;
   bool _isRegisteringFcm = false;
   bool _hasScheduledFcmRetry = false;
+  bool _phoneOtpRequestActive = false;
   int _fcmRetryAttempts = 0;
   static const int _maxFcmRetryAttempts = 5;
 
@@ -79,6 +79,10 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   }
 
   bool get isLoggedIn => currentUser.value != null;
+
+  GoogleSignIn get _nativeGoogleSignIn => _googleSignIn ??= GoogleSignIn(
+    serverClientId: AppConstants.googleWebClientId,
+  );
 
   Future<void> refreshCurrentUser() async {
     final user = _auth.currentUser;
@@ -164,20 +168,38 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   Future<void> signInWithGoogle() async {
     try {
       isLoading.value = true;
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return; // user cancelled
+      fb.UserCredential result;
 
-      final auth = await googleUser.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null) {
-        throw Exception('Google did not return an ID token.');
+      if (kIsWeb) {
+        result = await _auth.signInWithPopup(fb.GoogleAuthProvider());
+      } else {
+        final googleUser = await _nativeGoogleSignIn.signIn();
+        if (googleUser == null) return; // user cancelled
+
+        final auth = await googleUser.authentication;
+        final idToken = auth.idToken;
+        if (idToken == null) {
+          throw Exception('Google did not return an ID token.');
+        }
+        final credential = fb.GoogleAuthProvider.credential(
+          idToken: idToken,
+          accessToken: auth.accessToken,
+        );
+        result = await _auth.signInWithCredential(credential);
       }
-      final credential = fb.GoogleAuthProvider.credential(
-        idToken: idToken,
-        accessToken: auth.accessToken,
+
+      final user = result.user;
+      if (user == null) {
+        throw Exception('Google sign-in completed without a Firebase user.');
+      }
+      await _postAuthSetup(user);
+    } on fb.FirebaseAuthException catch (e, stack) {
+      _logFirebaseAuthException('Google sign-in', e, stack);
+      AppSnackbar.show(
+        'error'.tr,
+        _googleErrorMessage(e),
+        type: AppSnackbarType.error,
       );
-      final result = await _auth.signInWithCredential(credential);
-      await _postAuthSetup(result.user!);
     } catch (e) {
       debugPrint('[AuthController] Google sign-in error: $e');
       AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
@@ -193,24 +215,50 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     VoidCallback? onCodeSent,
     bool isResend = false,
   }) async {
+    if (_phoneOtpRequestActive) return;
+
     try {
+      FocusManager.instance.primaryFocus?.unfocus();
+      _phoneOtpRequestActive = true;
       isLoading.value = true;
       _pendingPhone = phoneNumber;
+      _webPhoneConfirmationResult = null;
       otpTimedOut.value = false;
       otpStatusMessage.value = '';
+
+      if (kIsWeb) {
+        final confirmationResult = await _auth.signInWithPhoneNumber(
+          phoneNumber,
+        );
+        _webPhoneConfirmationResult = confirmationResult;
+        verificationId.value = confirmationResult.verificationId;
+        _phoneOtpRequestActive = false;
+        otpStatusMessage.value = 'Code sent. Please enter the 6-digit code.';
+        resetOtpState();
+        _startResendCountdown();
+        onCodeSent?.call();
+        return;
+      }
+
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         forceResendingToken: isResend ? _resendToken : null,
         verificationCompleted: (credential) async {
           // Auto-retrieved on Android — no OTP sheet interaction needed.
+          if (!_phoneOtpRequestActive) return;
           try {
             final result = await _auth.signInWithCredential(credential);
             await _postAuthSetup(result.user!);
           } catch (e) {
             debugPrint('[AuthController] Auto-verification error: $e');
+          } finally {
+            _phoneOtpRequestActive = false;
           }
         },
         verificationFailed: (e) {
+          if (!_phoneOtpRequestActive) return;
+          _phoneOtpRequestActive = false;
+          _logFirebaseAuthException('Phone OTP send callback', e);
           otpStatusMessage.value = _phoneErrorMessage(e);
           AppSnackbar.show(
             'error'.tr,
@@ -220,6 +268,8 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           );
         },
         codeSent: (id, token) {
+          if (!_phoneOtpRequestActive) return;
+          _phoneOtpRequestActive = false;
           verificationId.value = id;
           _resendToken = token;
           otpTimedOut.value = false;
@@ -229,6 +279,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           onCodeSent?.call();
         },
         codeAutoRetrievalTimeout: (_) {
+          _phoneOtpRequestActive = false;
           otpTimedOut.value = true;
           otpStatusMessage.value =
               'Auto-detection timed out. Please enter the code manually or resend.';
@@ -240,7 +291,29 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           );
         },
       );
+    } on fb.FirebaseAuthException catch (e, stack) {
+      _phoneOtpRequestActive = false;
+      _logFirebaseAuthException('Phone OTP send', e, stack);
+      otpStatusMessage.value = _phoneErrorMessage(e);
+      AppSnackbar.show(
+        'error'.tr,
+        _phoneErrorMessage(e),
+        type: AppSnackbarType.error,
+        duration: const Duration(seconds: 6),
+      );
+    } catch (e) {
+      _phoneOtpRequestActive = false;
+      debugPrint('[AuthController] Phone OTP send error: $e');
+      otpStatusMessage.value = 'Verification failed. Please try again.';
+      AppSnackbar.show(
+        'error'.tr,
+        otpStatusMessage.value,
+        type: AppSnackbarType.error,
+      );
     } finally {
+      if (kIsWeb) {
+        _phoneOtpRequestActive = false;
+      }
       isLoading.value = false;
     }
   }
@@ -266,6 +339,8 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         return 'Security verification failed. Please try again.';
       case 'app-not-authorized':
         return 'This app is not authorized for phone sign-in.';
+      case 'internal-error':
+        return 'SMS verification is unavailable. Please check Firebase billing and SMS region settings.';
       case 'missing-phone-number':
         return 'Please enter a valid phone number.';
       default:
@@ -283,13 +358,29 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     if (isLoading.value) return;
     try {
       isLoading.value = true;
-      final credential = fb.PhoneAuthProvider.credential(
-        verificationId: verificationId.value,
-        smsCode: smsCode,
-      );
-      final result = await _auth.signInWithCredential(credential);
+      late final fb.UserCredential result;
+
+      if (kIsWeb) {
+        final confirmationResult = _webPhoneConfirmationResult;
+        if (confirmationResult == null) {
+          throw fb.FirebaseAuthException(
+            code: 'session-expired',
+            message: 'The session has expired. Please request a new code.',
+          );
+        }
+        result = await confirmationResult.confirm(smsCode);
+      } else {
+        final credential = fb.PhoneAuthProvider.credential(
+          verificationId: verificationId.value,
+          smsCode: smsCode,
+        );
+        result = await _auth.signInWithCredential(credential);
+      }
+
       await _postAuthSetup(result.user!);
-    } on fb.FirebaseAuthException catch (e) {
+      _webPhoneConfirmationResult = null;
+    } on fb.FirebaseAuthException catch (e, stack) {
+      _logFirebaseAuthException('Phone OTP verify', e, stack);
       resetOtpState();
       AppSnackbar.show(
         'error'.tr,
@@ -308,6 +399,35 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _logFirebaseAuthException(
+    String operation,
+    fb.FirebaseAuthException e, [
+    StackTrace? stack,
+  ]) {
+    debugPrint(
+      '[AuthController] $operation FirebaseAuthException '
+      'code=${e.code}, message=${e.message}, email=${e.email}, '
+      'credential=${e.credential?.providerId}',
+    );
+    if (stack != null) {
+      debugPrintStack(stackTrace: stack, label: '[AuthController] $operation');
+    }
+  }
+
+  String _googleErrorMessage(fb.FirebaseAuthException e) {
+    final msg = e.message ?? '';
+    if (e.code == 'unauthorized-domain' || msg.contains('origin_mismatch')) {
+      return 'This web origin is not authorized for Google sign-in.';
+    }
+    if (e.code == 'popup-closed-by-user') {
+      return 'Google sign-in was cancelled.';
+    }
+    if (e.code == 'popup-blocked') {
+      return 'The browser blocked the Google sign-in popup.';
+    }
+    return msg.isNotEmpty ? msg : 'Google sign-in failed. Please try again.';
   }
 
   String _otpErrorMessage(fb.FirebaseAuthException e) {
@@ -659,7 +779,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     try {
       isLoading.value = true;
       await _deactivateCurrentDeviceToken();
-      await _googleSignIn.signOut();
+      if (!kIsWeb) {
+        await _nativeGoogleSignIn.signOut();
+      }
       await _auth.signOut();
       await SupabaseService.client.auth.signOut();
       currentUser.value = null;
