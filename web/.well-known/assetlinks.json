@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "com.softforge.sora",
       "sha256_cert_fingerprints": [
-        "1A:12:0F:AF:0B:23:AB:DD:75:3A:02:CA:03:84:D0:0B:11:DE:BD:D1:21:C6:F8:09:17:8E:6E:90:81:44:4F:D0"
+        "1A:12:0F:AF:0B:23:AB:DD:75:3A:02:CA:03:84:D0:0B:11:DE:BD:D1:21:C6:F8:09:17:8E:6E:90:81:44:4F:D0",
+        "81:E3:EF:CE:94:90:76:0D:E7:56:12:2D:44:81:BA:2C:4B:27:69:E0:17:09:DB:80:97:73:54:87:36:FE:47:EA"
       ]
     }
   }

@@ -103,6 +103,8 @@ class DeepLinkService extends GetxService {
   Future<void>? _initialLinkCapture;
   Uri? _pendingUri;
   String? _pendingAuthRoute;
+  String? _lastReceivedLink;
+  DateTime? _lastReceivedAt;
   bool _navigationReady = false;
 
   @override
@@ -136,11 +138,24 @@ class DeepLinkService extends GetxService {
   }
 
   Future<bool> handleUri(Uri uri) async {
+    if (_isDuplicate(uri)) return true;
     if (!_navigationReady) {
       _pendingUri = uri;
       return true;
     }
     return _routeUri(uri);
+  }
+
+  bool _isDuplicate(Uri uri) {
+    final now = DateTime.now();
+    final value = uri.toString();
+    final duplicate =
+        value == _lastReceivedLink &&
+        _lastReceivedAt != null &&
+        now.difference(_lastReceivedAt!) < const Duration(seconds: 3);
+    _lastReceivedLink = value;
+    _lastReceivedAt = now;
+    return duplicate;
   }
 }
 ```
@@ -153,6 +168,12 @@ if (!openedDeepLink) {
   Get.offAllNamed(Routes.home);
 }
 ```
+
+Cold-start navigation must be atomic. When the current route is Splash, replace
+Splash directly with the target (`Get.offAllNamed(target)`). Do not first replace
+the stack with Home and then push the target; a duplicate initial-link callback
+or a late default redirect can leave the user on Home after briefly showing the
+deep-linked page.
 
 ## URI Parsing
 
@@ -335,6 +356,10 @@ Use it for:
     android:exported="true"
     android:launchMode="singleTop">
 
+    <meta-data
+        android:name="flutter_deeplinking_enabled"
+        android:value="false" />
+
     <intent-filter android:autoVerify="true">
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
@@ -469,14 +494,27 @@ Universal links must be tested from a real tap context such as Notes, Messages, 
 
 ## Flutter Deep Linking Handler Note
 
-When using a plugin such as `app_links`, check the current Flutter and plugin docs. In some setups, you may need to disable Flutter's built-in deep link handling to avoid duplicate delivery:
+When using `app_links`, disable Flutter's built-in deep-link handler so one
+system owns URL delivery. The `app_links` example requires both platform flags.
+Without them, iOS can open the target briefly and then bounce to Home, and either
+platform can deliver the cold-start URL twice.
 
 ```xml
+<!-- ios/Runner/Info.plist -->
 <key>FlutterDeepLinkingEnabled</key>
 <false/>
 ```
 
-Add this only if your plugin/framework recommends it or you observe duplicate initial links.
+```xml
+<!-- Inside the Android activity -->
+<meta-data
+    android:name="flutter_deeplinking_enabled"
+    android:value="false" />
+```
+
+Also deduplicate identical URLs for a short window in Dart because some OS/plugin
+versions can expose the same cold-start link through both `getInitialLink()` and
+`uriLinkStream`.
 
 ## Web SPA Setup
 
@@ -635,6 +673,9 @@ Android app link opens browser:
 
 - `assetlinks.json` unreachable or invalid.
 - SHA-256 fingerprint mismatch.
+- A locally shared debug APK is signed by the debug key, but `assetlinks.json`
+  contains only release/Play fingerprints. Publish every signing fingerprint
+  actually used by installed test builds.
 - Package name mismatch.
 - `android:autoVerify="true"` missing.
 - User changed default opening behavior in Android settings.
@@ -657,6 +698,13 @@ Notification tap ignored:
 - Link parser does not support the route.
 - DeepLinkService not registered before NotificationService handles initial message.
 - App tried to navigate before router/splash ready. Use pending URI.
+
+Deep-linked page flashes and then returns to Home:
+
+- Flutter's built-in handler and `app_links` are both enabled.
+- Initial URI and URI stream delivered the same cold-start URL without deduping.
+- Startup routing first navigated to Home and then pushed the target.
+- A splash/auth fallback redirected to Home after target navigation completed.
 
 Protected route loses destination after login:
 

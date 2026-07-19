@@ -7,7 +7,9 @@ import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/share_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../routes/app_pages.dart';
 import '../auth/auth_controller.dart';
+import '../cart/cart_controller.dart';
 
 class ItemController extends GetxController {
   static ItemController get to => Get.find();
@@ -28,6 +30,14 @@ class ItemController extends GetxController {
 
   ItemPropertyModel? get defaultProperty =>
       properties.firstWhereOrNull((p) => p.isDefault);
+
+  bool get selectedPropertyInCart {
+    final propertyId = selectedProperty?.id;
+    if (propertyId == null) return false;
+    return CartController.to.cartItems.any(
+      (cartItem) => cartItem.itemPropertyId == propertyId,
+    );
+  }
 
   String get effectiveDescription {
     final propertyDescription = (selectedProperty?.propertyDescription ?? '')
@@ -88,6 +98,40 @@ class ItemController extends GetxController {
   Future<void> refreshItem() => _fetchItem();
 
   void selectProperty(int index) => selectedPropertyIndex.value = index;
+
+  Future<void> handleCartAction() async {
+    if (selectedPropertyInCart) {
+      await Get.toNamed(Routes.checkout);
+      return;
+    }
+
+    final currentItem = item.value;
+    final property = selectedProperty;
+    if (currentItem == null || property == null || !property.inStock) return;
+    if (addingToCart.value) return;
+
+    addingToCart.value = true;
+    try {
+      await CartController.to.addItem(
+        property,
+        currentItem.itemName,
+        1,
+        displayProperty: defaultProperty,
+      );
+      await pulseCartFab();
+      AppSnackbar.show(
+        'added_to_cart'.tr,
+        '${currentItem.itemName} · ${property.sizeMl} ml',
+        type: AppSnackbarType.success,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      debugPrint('[ItemController] add to cart error: $e');
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
+    } finally {
+      addingToCart.value = false;
+    }
+  }
 
   Future<void> shareItem(BuildContext context) async {
     final currentItem = item.value;

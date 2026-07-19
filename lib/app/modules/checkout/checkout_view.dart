@@ -148,39 +148,45 @@ class _PhoneCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Quick-pick chips when the user has more than one saved phone
-          if (savedPhones.length > 1) ...
-            [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final phone in savedPhones)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
-                        child: ActionChip(
-                          avatar: const Icon(Icons.phone_outlined, size: 14),
-                          label: Text(phone,
-                              style: const TextStyle(fontSize: 12)),
-                          onPressed: () => c.phoneCtrl.text = phone,
+          if (savedPhones.length > 1) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final phone in savedPhones)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.phone_outlined, size: 14),
+                        label: Text(
+                          phone,
+                          style: const TextStyle(fontSize: 12),
                         ),
+                        onPressed: () => c.phoneCtrl.text = phone,
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 10),
-            ],
+            ),
+            const SizedBox(height: 10),
+          ],
           TextField(
             controller: user,
             keyboardType: TextInputType.phone,
             textDirection: TextDirection.ltr,
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d+\-\s()]'))],
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[\d+\-\s()]')),
+            ],
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.phone_outlined),
               hintText: 'phone_hint'.tr,
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
         ],
@@ -207,31 +213,33 @@ class _AddressCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    color: AppConstants.darkBeige),
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: AppConstants.darkBeige,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: addr == null
                       ? Text(
                           'no_addresses'.tr,
-                          style:
-                              const TextStyle(color: AppConstants.mediumBeige),
+                          style: const TextStyle(
+                            color: AppConstants.mediumBeige,
+                          ),
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               addr.address,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             if (addr.landmark.isNotEmpty)
                               Text(
                                 addr.landmark,
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
+                                  color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.6),
                                   fontSize: 12,
                                 ),
@@ -262,11 +270,13 @@ class _AddressCard extends StatelessWidget {
                           ),
                           selected: a.id == addr?.id,
                           onSelected: (_) => c.selectAddress(a),
-                          selectedColor:
-                              AppConstants.mediumBeige.withValues(alpha: 0.35),
+                          selectedColor: AppConstants.mediumBeige.withValues(
+                            alpha: 0.35,
+                          ),
                           side: BorderSide(
-                            color:
-                                AppConstants.mediumBeige.withValues(alpha: 0.5),
+                            color: AppConstants.mediumBeige.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                       ),
@@ -294,12 +304,11 @@ class _AddressCard extends StatelessWidget {
 }
 
 class _AddressSelectSheet extends StatelessWidget {
-  const _AddressSelectSheet(
-      {
-      required this.addresses,
-      required this.selectedAddressId,
-      required this.onSelect,
-    });
+  const _AddressSelectSheet({
+    required this.addresses,
+    required this.selectedAddressId,
+    required this.onSelect,
+  });
   final List<AddressModel> addresses;
   final int? selectedAddressId;
   final ValueChanged<AddressModel> onSelect;
@@ -317,8 +326,10 @@ class _AddressSelectSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('select_address'.tr,
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'select_address'.tr,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           if (addresses.isEmpty)
             Padding(
@@ -335,9 +346,7 @@ class _AddressSelectSheet extends StatelessWidget {
                   final addr = addresses[i];
                   return ListTile(
                     leading: Icon(
-                      addr.isDefault
-                          ? Icons.home
-                          : Icons.location_on_outlined,
+                      addr.isDefault ? Icons.home : Icons.location_on_outlined,
                       color: AppConstants.darkBeige,
                     ),
                     trailing: addr.id == selectedAddressId
@@ -347,8 +356,9 @@ class _AddressSelectSheet extends StatelessWidget {
                           )
                         : null,
                     selected: addr.id == selectedAddressId,
-                    selectedTileColor:
-                        AppConstants.mediumBeige.withValues(alpha: 0.12),
+                    selectedTileColor: AppConstants.mediumBeige.withValues(
+                      alpha: 0.12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -390,36 +400,86 @@ class _PromoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       title: 'promo_code'.tr,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: c.promoCtrl,
-              onChanged: c.onPromoChanged,
-              textDirection: TextDirection.ltr,
-              decoration: InputDecoration(
-                hintText: 'enter_promo'.tr,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Obx(() {
+        final applied = c.appliedPromo.value;
+        if (applied != null) {
+          return Container(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 4, 10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        applied.code,
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${'discount'.tr}: ${AppConstants.currency} '
+                        '${applied.discountAmount.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'change'.tr,
+                  onPressed: c.editPromo,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: c.promoCtrl,
+                onChanged: c.onPromoChanged,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(
+                  hintText: 'enter_promo'.tr,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Obx(() => ElevatedButton(
-                onPressed:
-                    c.promoLoading.value ? null : c.applyPromo,
-                child: c.promoLoading.value
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text('apply'.tr),
-              )),
-        ],
-      ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: c.promoLoading.value ? null : c.applyPromo,
+              child: c.promoLoading.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text('apply'.tr),
+            ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -439,8 +499,7 @@ class _NotesCard extends StatelessWidget {
         maxLines: 3,
         decoration: InputDecoration(
           hintText: 'notes_hint'.tr,
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
     );
@@ -458,57 +517,67 @@ class _OrderSummaryCard extends StatelessWidget {
     final cart = CartController.to.cartItems;
     return _SectionCard(
       title: 'order_summary'.tr,
-      child: Obx(() => Column(
-            children: [
-              ...cart.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${item.itemName} (${item.sizeMl} ml) × ${item.quantity}',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        Text(
-                          '${AppConstants.currency} ${item.subtotal.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ],
+      child: Obx(
+        () => Column(
+          children: [
+            ...cart.map(
+              (item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.itemName} (${item.sizeMl} ml) × ${item.quantity}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
-                  )),
-              const Divider(height: 24),
-              _SummaryRow(
-                  label: 'subtotal'.tr,
-                  value:
-                      '${AppConstants.currency} ${c.cartTotal.toStringAsFixed(2)}'),
-              if (c.discount.value > 0)
-                _SummaryRow(
-                  label: 'discount'.tr,
-                  value:
-                      '- ${AppConstants.currency} ${c.discount.value.toStringAsFixed(2)}',
-                  valueColor: Colors.green.shade700,
+                    Text(
+                      '${AppConstants.currency} ${item.subtotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
                 ),
-              const Divider(height: 16),
+              ),
+            ),
+            const Divider(height: 24),
+            _SummaryRow(
+              label: 'subtotal'.tr,
+              value:
+                  '${AppConstants.currency} ${c.cartTotal.toStringAsFixed(2)}',
+            ),
+            if (c.discount.value > 0)
               _SummaryRow(
-                label: 'total'.tr,
+                label: 'discount'.tr,
                 value:
-                    '${AppConstants.currency} ${c.finalTotal.toStringAsFixed(2)}',
-                bold: true,
-                valueColor: AppConstants.darkBeige,
+                    '- ${AppConstants.currency} ${c.discount.value.toStringAsFixed(2)}',
+                valueColor: Colors.green.shade700,
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(Icons.payments_outlined,
-                      size: 18, color: AppConstants.mediumBeige),
-                  const SizedBox(width: 8),
-                  Text('cash_on_delivery'.tr,
-                      style: TextStyle(color: AppConstants.mediumBeige)),
-                ],
-              ),
-            ],
-          )),
+            const Divider(height: 16),
+            _SummaryRow(
+              label: 'total'.tr,
+              value:
+                  '${AppConstants.currency} ${c.finalTotal.toStringAsFixed(2)}',
+              bold: true,
+              valueColor: AppConstants.darkBeige,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.payments_outlined,
+                  size: 18,
+                  color: AppConstants.mediumBeige,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'cash_on_delivery'.tr,
+                  style: TextStyle(color: AppConstants.mediumBeige),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -536,11 +605,13 @@ class _SummaryRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text(value,
-              style: (style ?? const TextStyle()).copyWith(
-                  color: valueColor,
-                  fontWeight:
-                      bold ? FontWeight.bold : FontWeight.normal)),
+          Text(
+            value,
+            style: (style ?? const TextStyle()).copyWith(
+              color: valueColor,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
@@ -561,8 +632,7 @@ class _PlaceOrderButton extends StatelessWidget {
         onPressed: c.placeOrder,
         child: Text(
           'place_order'.tr,
-          style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -584,16 +654,18 @@ class _SectionCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppConstants.mediumBeige.withValues(alpha: 0.25)),
+          color: AppConstants.mediumBeige.withValues(alpha: 0.25),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           child,
         ],

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import '../../global_widgets/network_image_with_placeholder.dart';
 import '../../routes/app_pages.dart';
@@ -23,9 +22,12 @@ class ItemView extends GetView<ItemController> {
       appBar: AppBar(
         leading: IconButton(
           icon: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.surface.withAlpha(150),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surface.withAlpha(150),
 
-            child: const BackButtonIcon()),
+            child: const BackButtonIcon(),
+          ),
           onPressed: () => _handleBack(context),
         ),
         actions: [
@@ -36,9 +38,12 @@ class ItemView extends GetView<ItemController> {
               builder: (shareContext) => IconButton(
                 tooltip: 'share'.tr,
                 icon: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.surface.withAlpha(150),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surface.withAlpha(150),
                   radius: 20,
-                  child: const Icon(Icons.share_outlined)),
+                  child: const Icon(Icons.share_outlined),
+                ),
                 onPressed: canShare
                     ? () => controller.shareItem(shareContext)
                     : null,
@@ -75,6 +80,8 @@ class ItemView extends GetView<ItemController> {
             prop: prop,
             item: item,
             count: count,
+            isInCart: controller.selectedPropertyInCart,
+            isAdding: controller.addingToCart.value,
             controller: controller,
           ),
           desktop: const SizedBox.shrink(),
@@ -210,6 +217,8 @@ class _DesktopLayout extends StatelessWidget {
                           prop: controller.selectedProperty,
                           item: controller.item.value,
                           count: count,
+                          isInCart: controller.selectedPropertyInCart,
+                          isAdding: controller.addingToCart.value,
                           controller: controller,
                         );
                       }),
@@ -406,6 +415,8 @@ class _AddToCartBottomBar extends StatelessWidget {
     required this.prop,
     required this.item,
     required this.count,
+    required this.isInCart,
+    required this.isAdding,
     required this.controller,
   });
 
@@ -414,6 +425,8 @@ class _AddToCartBottomBar extends StatelessWidget {
   final dynamic prop;
   final dynamic item;
   final int count;
+  final bool isInCart;
+  final bool isAdding;
   final ItemController controller;
 
   @override
@@ -452,23 +465,11 @@ class _AddToCartBottomBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: !inStock || prop == null || item == null
+            onPressed: !inStock || prop == null || item == null || isAdding
                 ? null
                 : () async {
                     HapticFeedback.mediumImpact();
-                    await CartController.to.addItem(
-                      prop,
-                      item.itemName,
-                      1,
-                      displayProperty: controller.defaultProperty,
-                    );
-                    await controller.pulseCartFab();
-                    AppSnackbar.show(
-                      'added_to_cart'.tr,
-                      '${item.itemName} · ${prop.sizeMl} ml',
-                      type: AppSnackbarType.success,
-                      duration: const Duration(seconds: 2),
-                    );
+                    await controller.handleCartAction();
                   },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -476,7 +477,11 @@ class _AddToCartBottomBar extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Icon(Icons.shopping_bag_outlined),
+                    Icon(
+                      isInCart
+                          ? Icons.shopping_cart_checkout
+                          : Icons.shopping_bag_outlined,
+                    ),
                     if (count > 0)
                       PositionedDirectional(
                         top: -7,
@@ -504,7 +509,9 @@ class _AddToCartBottomBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr,
+                  inStock
+                      ? (isInCart ? 'proceed_to_checkout'.tr : 'add_to_cart'.tr)
+                      : 'out_of_stock'.tr,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -526,6 +533,8 @@ class _AddToCartDesktopBtn extends StatelessWidget {
     required this.prop,
     required this.item,
     required this.count,
+    required this.isInCart,
+    required this.isAdding,
     required this.controller,
   });
 
@@ -534,6 +543,8 @@ class _AddToCartDesktopBtn extends StatelessWidget {
   final dynamic prop;
   final dynamic item;
   final int count;
+  final bool isInCart;
+  final bool isAdding;
   final ItemController controller;
 
   @override
@@ -552,28 +563,20 @@ class _AddToCartDesktopBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: !inStock || prop == null || item == null
+        onPressed: !inStock || prop == null || item == null || isAdding
             ? null
             : () async {
                 HapticFeedback.mediumImpact();
-                await CartController.to.addItem(
-                  prop,
-                  item.itemName,
-                  1,
-                  displayProperty: controller.defaultProperty,
-                );
-                await controller.pulseCartFab();
-                AppSnackbar.show(
-                  'added_to_cart'.tr,
-                  '${item.itemName} · ${prop.sizeMl} ml',
-                  type: AppSnackbarType.success,
-                  duration: const Duration(seconds: 2),
-                );
+                await controller.handleCartAction();
               },
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            const Icon(Icons.shopping_bag_outlined),
+            Icon(
+              isInCart
+                  ? Icons.shopping_cart_checkout
+                  : Icons.shopping_bag_outlined,
+            ),
             if (count > 0)
               PositionedDirectional(
                 top: -7,
@@ -600,7 +603,9 @@ class _AddToCartDesktopBtn extends StatelessWidget {
           ],
         ),
         label: Text(
-          inStock ? 'add_to_cart'.tr : 'out_of_stock'.tr,
+          inStock
+              ? (isInCart ? 'proceed_to_checkout'.tr : 'add_to_cart'.tr)
+              : 'out_of_stock'.tr,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),

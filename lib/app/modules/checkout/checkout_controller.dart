@@ -132,6 +132,16 @@ class CheckoutController extends GetxController {
     _appliedAffiliateSource = null;
   }
 
+  void editPromo() {
+    appliedPromo.value = null;
+    discount.value = 0;
+    _appliedAffiliateSource = null;
+    promoCtrl.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: promoCtrl.text.length,
+    );
+  }
+
   Future<bool> applyPromo({bool showFeedback = true}) async {
     final code = AffiliateProgramService.promoCodeFromInput(promoCtrl.text);
     if (code.isEmpty) {

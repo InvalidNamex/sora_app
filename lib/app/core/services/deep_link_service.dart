@@ -18,6 +18,8 @@ class DeepLinkService extends GetxService {
   Future<void>? _initialLinkCapture;
   Uri? _pendingUri;
   String? _pendingAuthRoute;
+  String? _lastReceivedLink;
+  DateTime? _lastReceivedAt;
   bool _navigationReady = false;
 
   @override
@@ -69,6 +71,7 @@ class DeepLinkService extends GetxService {
   }
 
   Future<bool> handleUri(Uri uri) async {
+    if (_isDuplicate(uri)) return true;
     if (!_navigationReady) {
       _pendingUri = uri;
       return true;
@@ -86,11 +89,7 @@ class DeepLinkService extends GetxService {
   }
 
   void _handleIncomingLink(Uri uri) {
-    if (!_navigationReady) {
-      unawaited(handleUri(uri));
-      return;
-    }
-    unawaited(_routeUri(uri));
+    unawaited(handleUri(uri));
   }
 
   Future<bool> _routeUri(Uri uri) async {
@@ -166,6 +165,18 @@ class DeepLinkService extends GetxService {
     return id != null && id > 0 ? id : null;
   }
 
+  bool _isDuplicate(Uri uri) {
+    final now = DateTime.now();
+    final value = uri.toString();
+    final duplicate =
+        value == _lastReceivedLink &&
+        _lastReceivedAt != null &&
+        now.difference(_lastReceivedAt!) < const Duration(seconds: 3);
+    _lastReceivedLink = value;
+    _lastReceivedAt = now;
+    return duplicate;
+  }
+
   Future<void> _openHome() async {
     if (Get.isRegistered<NavController>()) {
       NavController.to.setIndex(0);
@@ -176,10 +187,13 @@ class DeepLinkService extends GetxService {
   }
 
   Future<void> _openRoute(String route) async {
-    if (Get.currentRoute != Routes.home) {
-      Get.offAllNamed(Routes.home);
-      await Future<void>.delayed(Duration.zero);
+    if (Get.currentRoute == route) return;
+
+    if (Get.currentRoute == Routes.splash) {
+      await Get.offAllNamed(route);
+      return;
     }
+
     await Get.toNamed(route);
   }
 }

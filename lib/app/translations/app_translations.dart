@@ -55,6 +55,7 @@ class AppTranslations extends Translations {
       'sign_in_to_access_profile': 'سجّل دخولك للوصول إلى حسابك',
       // ── Home / Shop ───────────────────────────────────────────
       'add_to_cart': 'أضف إلى السلة',
+      'proceed_to_checkout': 'المتابعة لإتمام الشراء',
       'added_to_cart': 'تمت الإضافة',
       'out_of_stock': 'غير متوفر',
       'checkout': 'إتمام الشراء',
@@ -261,6 +262,7 @@ class AppTranslations extends Translations {
       'sign_in_to_access_profile': 'Sign in to access your profile',
       // ── Home / Shop ───────────────────────────────────────────
       'add_to_cart': 'Add to Cart',
+      'proceed_to_checkout': 'Proceed to Checkout',
       'added_to_cart': 'Added to Cart',
       'out_of_stock': 'Out of Stock',
       'checkout': 'Checkout',
