@@ -16,7 +16,7 @@ owner.
 - Apple team ID: `WRHTJ9468B`
 - App identifier used by universal links:
   `WRHTJ9468B.com.softforge.sora`
-- Current Flutter version/build: `1.0.0+9`
+- Current Flutter version/build: `1.0.0+10`
 - Minimum supported iOS version: iOS 15.0
 - Supported devices: iPhone and iPad
 - Supported app languages: English and Arabic
@@ -44,15 +44,15 @@ owner.
 - Unsigned Release archive: built successfully at
   `build/ios/archive/Runner.xcarchive`
 - Flutter App Settings Validation: passed
-- Archived version/build: `1.0.0 (9)`
+- Archived version/build: `1.0.0 (10)`.
 - Archived bundle ID: `com.softforge.sora`
 - Archived minimum iOS version: `15.0`
 - Archived privacy manifest: present and valid
 - Archived dSYMs: present, including `Runner.app.dSYM`
 
 The archive is intentionally unsigned and is a compile/readiness artifact, not
-an uploadable IPA. A final signed archive must be produced after the blockers
-below are resolved.
+an uploadable IPA. A final signed archive must be produced in Xcode with the
+Apple distribution profile before upload.
 
 ### Repository changes made during this audit
 
@@ -619,17 +619,17 @@ Test on at least one physical iPhone and one supported iPad:
 Current source value:
 
 ```yaml
-version: 1.0.0+9
+version: 1.0.0+10
 ```
 
 - `1.0.0` is the marketing/version number.
-- `9` is the build number.
+- `10` is the build number.
 - App Store Connect matches builds by bundle ID and version.
 - Every uploaded build for the same version needs a unique, increasing build
   number.
 
-If build 9 has never been uploaded, it may be used. If its upload history is
-unknown, increment to build 10 before upload:
+Build 10 is the next upload candidate. If App Store Connect reports that build
+10 has already been used, increment the build number again before upload:
 
 ```bash
 flutter build ipa --release --build-name=1.0.0 --build-number=10
