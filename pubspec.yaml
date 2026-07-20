@@ -10,6 +10,7 @@ environment:
   sdk: ^3.11.1
 
 dependencies:
+  sentry_flutter: ^9.24.0
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -64,6 +65,7 @@ dependencies:
   flutter_local_notifications: ^22.0.1
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.4.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
@@ -153,3 +155,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  upload_sources: false
+  commits: false
+  project: sora
+  org: casatek

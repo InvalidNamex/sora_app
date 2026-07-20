@@ -331,6 +331,12 @@ the following data linked to the user's identity for app functionality:
 - Device ID/push token
 - Purchase history
 - Product interaction, including cart/wishlist behavior
+- Crash Data, Performance Data, and Other Diagnostic Data used to diagnose app
+  errors and reliability. Sentry's SDK privacy manifest declares these for App
+  Functionality as not linked and not used for tracking. Sentry is configured
+  without default PII and without performance tracing; keep these disclosures
+  not linked unless the final Sentry configuration is changed to attach
+  account information.
 
 Use this as the starting point for App Store Connect, then verify it with the
 business and privacy-policy owner. App Store Connect disclosures must also
@@ -340,6 +346,8 @@ Current source/configuration indicates:
 
 - Firebase Analytics is disabled.
 - Firebase Ads is disabled.
+- Sentry error and crash reporting is enabled. Performance tracing and
+  profiling are disabled, and `sendDefaultPii` is explicitly disabled.
 - No advertising SDK or IDFA access was found.
 - No App Tracking Transparency prompt is needed if the business does not track
   users across other companies' apps/websites.
@@ -693,6 +701,32 @@ flutter build ipa --release --build-name=1.0.0 --build-number=10
 
 Use a signed build with the correct team/profile. An archive produced with
 `--no-codesign` is only a compile check and cannot be uploaded.
+
+### Sentry symbols after archiving
+
+The Sentry SDK must be integrated before compiling, but debug symbols can only
+be uploaded after the archive exists. The private upload token is stored in the
+ignored root `sentry.properties` file. Never commit that file; use the
+`SENTRY_AUTH_TOKEN` environment variable in CI.
+
+For an archive produced by `flutter build ipa`, run from the repository root:
+
+```bash
+dart run sentry_dart_plugin
+```
+
+For an archive produced in Xcode Organizer, right-click the archive, choose
+**Show in Finder**, and pass its dSYM folder explicitly:
+
+```bash
+dart run sentry_dart_plugin \
+  --sentry-define=symbols_path="/absolute/path/to/Runner.xcarchive/dSYMs" \
+  --sentry-define=upload_source_maps=false
+```
+
+Run the command after each final Release archive and confirm it exits
+successfully before submitting the build. The configuration targets Sentry
+organization `casatek` and project `sora`.
 
 ## 19. Inspect the final archive
 

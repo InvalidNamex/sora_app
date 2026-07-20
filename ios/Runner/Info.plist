@@ -103,6 +103,7 @@
 			<string>UIInterfaceOrientationLandscapeLeft</string>
 			<string>UIInterfaceOrientationLandscapeRight</string>
 			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		</array>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Sora lets authorized administrators select photos for product, category, notification, and bundle images.</string>

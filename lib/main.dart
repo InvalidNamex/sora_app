@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:get_storage_wasm/get_storage_wasm.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/core/bindings/app_binding.dart';
 import 'app/core/controllers/settings_controller.dart';
@@ -19,6 +20,15 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await SentryFlutter.init((options) {
+    options.dsn =
+        'https://08d59abc0502c735d5261aeb13abce6b@o4510415561687040.ingest.de.sentry.io/4511768490541136';
+    options.sendDefaultPii = false;
+  }, appRunner: _bootstrap);
+}
+
+Future<void> _bootstrap() async {
   configureWebUrlStrategy();
 
   await dotenv.load(fileName: '.env');
@@ -32,7 +42,7 @@ Future<void> main() async {
   final settings = Get.put(SettingsController(), permanent: true);
   AppBinding.init(); // registers AuthController, CartController, NavController, lazy tab controllers
 
-  runApp(SoraApp(settings: settings));
+  runApp(SentryWidget(child: SoraApp(settings: settings)));
 }
 
 class SoraApp extends StatelessWidget {

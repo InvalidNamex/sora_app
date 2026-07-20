@@ -20,10 +20,13 @@ class PrivacyPolicyView extends StatelessWidget {
           'We may collect your name, email address, phone number, Firebase '
           'account identifier, saved delivery addresses, order details, cart '
           'and wishlist activity, customer-support communications, affiliate '
-          'program information, and device notification tokens. If you choose '
-          'a location on the map, we use the selected or device location to '
-          'help create a delivery address. We do not collect payment-card '
-          'details because current orders are paid by cash on delivery.',
+          'program information, device notification tokens, and technical '
+          'diagnostic information such as app and operating-system versions, '
+          'device type, crash logs, error stack traces, and app performance or '
+          'hang information. If you choose a location on the map, we use the '
+          'selected or device location to help create a delivery address. We '
+          'do not collect payment-card details because current orders are paid '
+          'by cash on delivery.',
     ),
     (
       title: '3. Sign-in information',
@@ -41,8 +44,9 @@ class PrivacyPolicyView extends StatelessWidget {
           'We use information to create and secure your account; keep your '
           'cart and wishlist; fulfil, deliver, and support orders; send '
           'service and optional promotional notifications; operate promotions '
-          'and the affiliate program; prevent fraud and misuse; improve app '
-          'reliability; and meet legal, accounting, and regulatory duties.',
+          'and the affiliate program; prevent fraud and misuse; diagnose '
+          'crashes and errors; improve app reliability; and meet legal, '
+          'accounting, and regulatory duties.',
     ),
     (
       title: '5. Device permissions',
@@ -60,10 +64,11 @@ class PrivacyPolicyView extends StatelessWidget {
           'We share information only as needed with service providers that '
           'operate the app and store, including Firebase (authentication and '
           'notifications), Supabase (database, storage, and server functions), '
-          'Vercel (website hosting), mapping services used to display maps, '
-          'and delivery or support providers needed to complete an order. We '
-          'may also disclose information when required by law or to protect '
-          'users, Sora, or others. We do not sell personal information.',
+          'Sentry (error and crash reporting), Vercel (website hosting), '
+          'mapping services used to display maps, and delivery or support '
+          'providers needed to complete an order. We may also disclose '
+          'information when required by law or to protect users, Sora, or '
+          'others. We do not sell personal information.',
     ),
     (
       title: '7. Retention',
