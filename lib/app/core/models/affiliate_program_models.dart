@@ -90,3 +90,86 @@ class AffiliateApplicationModel {
     );
   }
 }
+
+class AffiliateAdminUserSummary {
+  const AffiliateAdminUserSummary({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.isAffiliate,
+    required this.code,
+    required this.customerDiscountPercentage,
+    required this.commissionPercentage,
+    required this.referredOrders,
+    required this.referredRevenue,
+    required this.totalCommission,
+    required this.availableCommission,
+    required this.pendingCommission,
+    required this.paidCommission,
+    required this.paidPayouts,
+    this.phoneTwo,
+    this.email,
+  });
+
+  final int id;
+  final String name;
+  final String phone;
+  final String? phoneTwo;
+  final String? email;
+  final bool isAffiliate;
+  final String code;
+  final double customerDiscountPercentage;
+  final double commissionPercentage;
+  final int referredOrders;
+  final double referredRevenue;
+  final double totalCommission;
+  final double availableCommission;
+  final double pendingCommission;
+  final double paidCommission;
+  final double paidPayouts;
+
+  factory AffiliateAdminUserSummary.fromJson(Map<String, dynamic> json) {
+    return AffiliateAdminUserSummary(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] as String?) ?? '',
+      phone: (json['phone'] as String?) ?? '',
+      phoneTwo: json['phoneTwo'] as String?,
+      email: json['email'] as String?,
+      isAffiliate: json['isAffiliate'] == true,
+      code: (json['code'] as String?) ?? '',
+      customerDiscountPercentage:
+          (json['customerDiscountPercentage'] as num?)?.toDouble() ?? 0,
+      commissionPercentage:
+          (json['commissionPercentage'] as num?)?.toDouble() ?? 0,
+      referredOrders: (json['referredOrders'] as num?)?.toInt() ?? 0,
+      referredRevenue: (json['referredRevenue'] as num?)?.toDouble() ?? 0,
+      totalCommission: (json['totalCommission'] as num?)?.toDouble() ?? 0,
+      availableCommission:
+          (json['availableCommission'] as num?)?.toDouble() ?? 0,
+      pendingCommission: (json['pendingCommission'] as num?)?.toDouble() ?? 0,
+      paidCommission: (json['paidCommission'] as num?)?.toDouble() ?? 0,
+      paidPayouts: (json['paidPayouts'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  AffiliateAdminUserSummary copyWith({bool? isAffiliate}) {
+    return AffiliateAdminUserSummary(
+      id: id,
+      name: name,
+      phone: phone,
+      phoneTwo: phoneTwo,
+      email: email,
+      isAffiliate: isAffiliate ?? this.isAffiliate,
+      code: code,
+      customerDiscountPercentage: customerDiscountPercentage,
+      commissionPercentage: commissionPercentage,
+      referredOrders: referredOrders,
+      referredRevenue: referredRevenue,
+      totalCommission: totalCommission,
+      availableCommission: availableCommission,
+      pendingCommission: pendingCommission,
+      paidCommission: paidCommission,
+      paidPayouts: paidPayouts,
+    );
+  }
+}

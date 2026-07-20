@@ -127,8 +127,9 @@ class _NavTiles extends StatelessWidget {
                 _tabs[i].$3.tr,
                 style: TextStyle(
                   color: current == i ? AppConstants.darkBeige : null,
-                  fontWeight:
-                      current == i ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: current == i
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                 ),
               ),
               selected: current == i,
@@ -162,39 +163,44 @@ class _FiltersSection extends StatelessWidget {
 
     return Obx(() {
       final selected = ctrl.genderFilter.value;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              'gender_filter'.tr,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-          for (final opt in _genderOptions)
-            ListTile(
-              dense: true,
-              leading: Radio<int?>(
-                value: opt.$1,
-                groupValue: selected,
-                activeColor: AppConstants.darkBeige,
-                onChanged: ctrl.setGenderFilter,
+      return RadioGroup<int?>(
+        groupValue: selected,
+        onChanged: ctrl.setGenderFilter,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                'gender_filter'.tr,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              title: Text(opt.$2.tr,
-                  style: const TextStyle(fontSize: 13)),
-              onTap: () => ctrl.setGenderFilter(opt.$1),
             ),
-          CheckboxListTile(
-            dense: true,
-            value: ctrl.inStockOnly.value,
-            activeColor: AppConstants.darkBeige,
-            title: Text('in_stock_only'.tr,
-                style: const TextStyle(fontSize: 13)),
-            onChanged: (v) => ctrl.setInStockOnly(v ?? false),
-          ),
-        ],
+            for (final opt in _genderOptions)
+              ListTile(
+                dense: true,
+                leading: Radio<int?>(
+                  value: opt.$1,
+                  activeColor: AppConstants.darkBeige,
+                ),
+                title: Text(opt.$2.tr, style: const TextStyle(fontSize: 13)),
+                onTap: () => ctrl.setGenderFilter(opt.$1),
+              ),
+            CheckboxListTile(
+              dense: true,
+              value: ctrl.inStockOnly.value,
+              activeColor: AppConstants.darkBeige,
+              title: Text(
+                'in_stock_only'.tr,
+                style: const TextStyle(fontSize: 13),
+              ),
+              onChanged: (v) => ctrl.setInStockOnly(v ?? false),
+            ),
+          ],
+        ),
       );
     });
   }
@@ -216,8 +222,7 @@ class _SettingsSection extends StatelessWidget {
           return SwitchListTile(
             dense: true,
             secondary: const Icon(Icons.dark_mode_outlined),
-            title: Text('dark_mode'.tr,
-                style: const TextStyle(fontSize: 13)),
+            title: Text('dark_mode'.tr, style: const TextStyle(fontSize: 13)),
             value: ctrl.isDark.value,
             activeThumbColor: AppConstants.darkBeige,
             onChanged: (_) => ctrl.toggleTheme(),
@@ -225,14 +230,43 @@ class _SettingsSection extends StatelessWidget {
         }),
         // Language toggle
         Obx(() {
-          final isAr =
-              Get.find<SettingsController>().localeCode.value == 'ar';
+          final isAr = Get.find<SettingsController>().localeCode.value == 'ar';
           return ListTile(
             dense: true,
             leading: const Icon(Icons.language),
-            title: Text('language'.tr,
-                style: const TextStyle(fontSize: 13)),
+            title: Text('language'.tr, style: const TextStyle(fontSize: 13)),
             trailing: _LangToggle(isArabic: isAr),
+          );
+        }),
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: Text(
+            'privacy_policy'.tr,
+            style: const TextStyle(fontSize: 13),
+          ),
+          onTap: () {
+            if (!isDesktop) Navigator.of(context).pop();
+            Get.toNamed(Routes.privacyPolicy);
+          },
+        ),
+        Obx(() {
+          final user = AuthController.to.currentUser.value;
+          if (user == null) return const SizedBox.shrink();
+          return ListTile(
+            dense: true,
+            leading: const Icon(
+              Icons.delete_forever_outlined,
+              color: Colors.redAccent,
+            ),
+            title: Text(
+              'delete_account'.tr,
+              style: const TextStyle(fontSize: 13, color: Colors.redAccent),
+            ),
+            onTap: () {
+              if (!isDesktop) Navigator.of(context).pop();
+              Get.toNamed(Routes.accountDeletion);
+            },
           );
         }),
 
@@ -269,8 +303,7 @@ class _SettingsSection extends StatelessWidget {
       title: 'sign_out'.tr,
       middleText: 'sign_out_confirm'.tr,
       confirm: ElevatedButton(
-        style:
-            ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
         onPressed: () async {
           Navigator.of(context).pop(); // Close the dialog first
           await AuthController.to.signOut();
@@ -302,14 +335,12 @@ class _LangToggle extends StatelessWidget {
           _LangBtn(
             label: 'ع',
             selected: isArabic,
-            onTap: () =>
-                Get.find<SettingsController>().changeLocale('ar'),
+            onTap: () => Get.find<SettingsController>().changeLocale('ar'),
           ),
           _LangBtn(
             label: 'EN',
             selected: !isArabic,
-            onTap: () =>
-                Get.find<SettingsController>().changeLocale('en'),
+            onTap: () => Get.find<SettingsController>().changeLocale('en'),
           ),
         ],
       ),
@@ -318,10 +349,11 @@ class _LangToggle extends StatelessWidget {
 }
 
 class _LangBtn extends StatelessWidget {
-  const _LangBtn(
-      {required this.label,
-      required this.selected,
-      required this.onTap});
+  const _LangBtn({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -332,8 +364,7 @@ class _LangBtn extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: selected ? AppConstants.darkBeige : Colors.transparent,
           borderRadius: BorderRadius.circular(20),

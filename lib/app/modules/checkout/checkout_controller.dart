@@ -5,7 +5,9 @@ import 'package:get/get.dart';
 
 import '../../core/models/address_model.dart';
 import '../../core/models/affiliate_program_models.dart';
+import '../../core/models/cart_item_model.dart';
 import '../../core/services/affiliate_program_service.dart';
+import '../../core/services/deep_link_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../routes/app_pages.dart';
@@ -28,27 +30,51 @@ class CheckoutController extends GetxController {
   final phoneCtrl = TextEditingController();
 
   String? _appliedAffiliateSource;
+  Worker? _userWorker;
+  Worker? _bundleWorker;
+  bool _hasPreloadedPhone = false;
 
   double get cartTotal => CartController.to.totalPrice;
   double get finalTotal =>
       (cartTotal - discount.value).clamp(0, double.infinity);
+  bool get hasBundleDeal => CartController.to.bundleItems.isNotEmpty;
 
   @override
   void onReady() {
     super.onReady();
-    unawaited(loadAddresses());
+    _userWorker = ever(AuthController.to.currentUser, (user) {
+      if (user == null) return;
+      _preloadPhone();
+      unawaited(loadAddresses());
+    });
+    _bundleWorker = ever(
+      CartController.to.bundleItems,
+      (_) => _clearPromoForBundle(),
+    );
+    _clearPromoForBundle();
+    unawaited(_loadCustomerData());
     unawaited(_loadSavedAffiliateCode());
+  }
 
+  Future<void> _loadCustomerData() async {
+    await AuthController.to.refreshCurrentUser();
+    _preloadPhone();
+    await loadAddresses();
+  }
+
+  void _preloadPhone() {
     final user = AuthController.to.currentUser.value;
-    if (user != null) {
-      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true
-          ? user.phoneTwo!
-          : user.phone;
+    if (user == null || (_hasPreloadedPhone && phoneCtrl.text.isNotEmpty)) {
+      return;
     }
+    phoneCtrl.text = user.phone.isNotEmpty ? user.phone : user.phoneTwo ?? '';
+    _hasPreloadedPhone = phoneCtrl.text.isNotEmpty;
   }
 
   @override
   void onClose() {
+    _userWorker?.dispose();
+    _bundleWorker?.dispose();
     promoCtrl.dispose();
     notesCtrl.dispose();
     phoneCtrl.dispose();
@@ -82,13 +108,16 @@ class CheckoutController extends GetxController {
     await AuthController.to.refreshCurrentUser();
     final user = AuthController.to.currentUser.value;
     if (user != null) {
-      phoneCtrl.text = user.phoneTwo?.isNotEmpty == true
-          ? user.phoneTwo!
-          : user.phone;
+      phoneCtrl.text = user.phone.isNotEmpty ? user.phone : user.phoneTwo ?? '';
+      _hasPreloadedPhone = phoneCtrl.text.isNotEmpty;
     }
     await loadAddresses();
     await CartController.to.refreshCart();
 
+    if (hasBundleDeal) {
+      _clearPromoForBundle();
+      return;
+    }
     final validation = appliedPromo.value;
     if (validation != null) {
       await applyPromo(showFeedback: false);
@@ -97,6 +126,10 @@ class CheckoutController extends GetxController {
 
   Future<void> _loadSavedAffiliateCode() async {
     try {
+      if (hasBundleDeal) {
+        _clearPromoForBundle();
+        return;
+      }
       var code = AffiliateProgramService.activeCode;
       var source = AffiliateProgramService.activeSource;
 
@@ -113,6 +146,10 @@ class CheckoutController extends GetxController {
       }
 
       if (code == null || code.isEmpty) return;
+      if (hasBundleDeal) {
+        _clearPromoForBundle();
+        return;
+      }
       promoCtrl.text = code;
       _appliedAffiliateSource = source == 'link' ? 'link' : 'manual';
       await applyPromo(showFeedback: false);
@@ -142,7 +179,60 @@ class CheckoutController extends GetxController {
     );
   }
 
+  void _clearPromoForBundle() {
+    if (!hasBundleDeal) return;
+    promoCtrl.clear();
+    appliedPromo.value = null;
+    discount.value = 0;
+    _appliedAffiliateSource = null;
+  }
+
+  Future<void> startLoginForCheckout() async {
+    DeepLinkService.to.setPendingAuthRoute(Routes.checkout);
+    await Get.offNamed(Routes.auth);
+  }
+
+  Future<void> incrementCartItem(CartItemModel item) async {
+    await CartController.to.increment(item);
+    await _refreshAppliedPromoAfterCartChange();
+  }
+
+  Future<void> decrementCartItem(CartItemModel item) async {
+    await CartController.to.decrement(item);
+    await _refreshAppliedPromoAfterCartChange();
+  }
+
+  Future<void> removeCartItem(CartItemModel item) async {
+    await CartController.to.remove(item);
+    await _refreshAppliedPromoAfterCartChange();
+  }
+
+  Future<void> _refreshAppliedPromoAfterCartChange() async {
+    if (CartController.to.isEmpty || hasBundleDeal) {
+      _clearPromoForBundle();
+      appliedPromo.value = null;
+      discount.value = 0;
+      _appliedAffiliateSource = null;
+      return;
+    }
+
+    if (appliedPromo.value != null) {
+      await applyPromo(showFeedback: false);
+    }
+  }
+
   Future<bool> applyPromo({bool showFeedback = true}) async {
+    if (hasBundleDeal) {
+      _clearPromoForBundle();
+      if (showFeedback) {
+        AppSnackbar.show(
+          'error'.tr,
+          'promo_unavailable_with_bundle'.tr,
+          type: AppSnackbarType.error,
+        );
+      }
+      return false;
+    }
     final code = AffiliateProgramService.promoCodeFromInput(promoCtrl.text);
     if (code.isEmpty) {
       appliedPromo.value = null;
@@ -213,6 +303,10 @@ class CheckoutController extends GetxController {
     final user = AuthController.to.currentUser.value;
     final phone = phoneCtrl.text.trim();
     if (address == null || user == null) {
+      if (user == null) {
+        await startLoginForCheckout();
+        return;
+      }
       AppSnackbar.show(
         'error'.tr,
         'select_address'.tr,
@@ -228,11 +322,12 @@ class CheckoutController extends GetxController {
       );
       return;
     }
-    if (CartController.to.cartItems.isEmpty) return;
+    if (CartController.to.isEmpty) return;
 
-    final enteredCode = AffiliateProgramService.promoCodeFromInput(
-      promoCtrl.text,
-    );
+    if (hasBundleDeal) _clearPromoForBundle();
+    final enteredCode = hasBundleDeal
+        ? ''
+        : AffiliateProgramService.promoCodeFromInput(promoCtrl.text);
     if (enteredCode.isNotEmpty && appliedPromo.value?.code != enteredCode) {
       final valid = await applyPromo();
       if (!valid) return;

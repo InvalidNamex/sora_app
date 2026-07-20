@@ -18,7 +18,7 @@ import '../auth_controller.dart';
 /// - **Manual entry**: each digit advances focus; backspace retreats; all 6
 ///   filled → auto-submits.
 class PhoneOtpSheet extends StatelessWidget {
-  PhoneOtpSheet({super.key, required this.controller});
+  const PhoneOtpSheet({super.key, required this.controller});
 
   final AuthController controller;
 
@@ -98,18 +98,16 @@ class PhoneOtpSheet extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'enter_otp'.tr,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
                 'otp_sent_hint'.tr,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppConstants.mediumBeige),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppConstants.mediumBeige,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
@@ -119,10 +117,10 @@ class PhoneOtpSheet extends StatelessWidget {
                 return Text(
                   msg,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: controller.otpTimedOut.value
-                            ? Colors.orange.shade800
-                            : AppConstants.mediumBeige,
-                      ),
+                    color: controller.otpTimedOut.value
+                        ? Colors.orange.shade800
+                        : AppConstants.mediumBeige,
+                  ),
                   textAlign: TextAlign.center,
                 );
               }),
@@ -145,46 +143,51 @@ class PhoneOtpSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              Obx(() => Align(
-                    alignment: Alignment.center,
-                    child: TextButton(
-                      onPressed: controller.canResendOtp && !controller.isLoading.value
-                          ? () => controller.resendPhoneOtp()
-                          : null,
-                      child: Text(
-                        controller.resendSecondsLeft.value > 0
-                            ? 'Resend in ${controller.resendSecondsLeft.value}s'
-                            : 'Resend code',
-                      ),
+              Obx(
+                () => Align(
+                  alignment: Alignment.center,
+                  child: TextButton(
+                    onPressed:
+                        controller.canResendOtp && !controller.isLoading.value
+                        ? () => controller.resendPhoneOtp()
+                        : null,
+                    child: Text(
+                      controller.resendSecondsLeft.value > 0
+                          ? 'Resend in ${controller.resendSecondsLeft.value}s'
+                          : 'Resend code',
                     ),
-                  )),
+                  ),
+                ),
+              ),
               const SizedBox(height: 6),
-              Obx(() => SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: controller.isLoading.value
-                          ? null
-                          : () {
-                              final code = controller.otpControllers
-                                  .map((c) => c.text)
-                                  .join();
-                              if (code.length == 6) {
-                                controller.verifyPhoneOtp(code);
-                              }
-                            },
-                      child: controller.isLoading.value
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text('verify'.tr),
-                    ),
-                  )),
+              Obx(
+                () => SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: controller.isLoading.value
+                        ? null
+                        : () {
+                            final code = controller.otpControllers
+                                .map((c) => c.text)
+                                .join();
+                            if (code.length == 6) {
+                              controller.verifyPhoneOtp(code);
+                            }
+                          },
+                    child: controller.isLoading.value
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text('verify'.tr),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -219,13 +222,9 @@ class _OtpBox extends StatelessWidget {
         // Box 0 has no maxLength so iOS/paste autofill of the full code lands
         // here and gets distributed by _onDigitChanged. Boxes 1–5 cap at 1.
         maxLength: index == 0 ? null : 1,
-        autofillHints:
-            index == 0 ? const [AutofillHints.oneTimeCode] : null,
+        autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         decoration: InputDecoration(
           counterText: '',
           contentPadding: EdgeInsets.zero,

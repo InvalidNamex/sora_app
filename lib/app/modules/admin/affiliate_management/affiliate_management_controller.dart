@@ -4,9 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../core/models/affiliate_program_models.dart';
 import '../../../core/models/payout_request_model.dart';
-import '../../../core/models/user_model.dart';
 import '../../../core/services/affiliate_program_service.dart';
-import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 
 class AffiliateManagementController extends GetxController {
@@ -19,14 +17,15 @@ class AffiliateManagementController extends GetxController {
   final reviewingId = Rxn<int>();
 
   // ── Users tab ────────────────────────────────────────────────────────────
-  final searchResults = <UserModel>[].obs;
-  final loadingUsers = false.obs;
+  final searchResults = <AffiliateAdminUserSummary>[].obs;
+  final loadingUsers = true.obs;
   Timer? _debounce;
 
   @override
   void onReady() {
     super.onReady();
     fetchQueues();
+    fetchUsers();
   }
 
   @override
@@ -108,24 +107,19 @@ class AffiliateManagementController extends GetxController {
 
   void onSearchChanged(String query) {
     _debounce?.cancel();
-    if (query.isEmpty) {
-      searchResults.clear();
-      return;
-    }
-    _debounce = Timer(const Duration(milliseconds: 500), () => _search(query));
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => fetchUsers(query: query),
+    );
   }
 
-  Future<void> _search(String query) async {
+  Future<void> fetchUsers({String query = ''}) async {
     loadingUsers.value = true;
     try {
-      final response = await SupabaseService.client
-          .from('users')
-          .select()
-          .ilike('phone', '%$query%')
-          .limit(20);
-      searchResults.value = (response as List)
-          .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      searchResults.value =
+          await AffiliateProgramService.getAdminAffiliateUsers(query: query);
+    } on AffiliateProgramException catch (e) {
+      AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
     } finally {
       loadingUsers.value = false;
     }
@@ -139,11 +133,7 @@ class AffiliateManagementController extends GetxController {
       );
       final idx = searchResults.indexWhere((u) => u.id == userId);
       if (idx != -1) {
-        final updated = UserModel.fromJson({
-          ...searchResults[idx].toJson(),
-          'isAffiliate': !current,
-        });
-        searchResults[idx] = updated;
+        searchResults[idx] = searchResults[idx].copyWith(isAffiliate: !current);
         searchResults.refresh();
       }
     } on AffiliateProgramException catch (e) {

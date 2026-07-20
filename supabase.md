@@ -29,6 +29,18 @@ implementation:
 * isAffiliate bool default to false
 * isAdmin bool default to false
 * fcmTokens text
+* isDeleted bool default false
+* deletedAt timestamptz nullable
+
+**account deletion:**
+* `delete-account` verifies the current Firebase ID token.
+* `begin_account_deletion` erases non-required account data and anonymizes
+  retained order relationships.
+* Active-order delivery snapshots remain only until the order reaches
+  Delivered, Cancelled, or Returned; a trigger then redacts them.
+* The Edge Function deletes the Firebase identity and
+  `finalize_account_deletion` replaces the stored Firebase UID with a
+  pseudonymous deleted-account identifier.
 
 **table address_book:**
 * id int8 primary
@@ -57,10 +69,36 @@ implementation:
 
 **table cart:**
 * id int8 primary
-* itemID int8 foreign key to item_properties.id
+* propertyID int8 nullable foreign key to item_properties.id
+* bundleID int8 nullable foreign key to bundle_deals.id
 * userID int8 foreign key to users.id
 * quantity int2
 * created_at timestamptz
+* Exactly one of propertyID or bundleID is set for each row.
+
+**table bundle_deals:**
+* id int8 primary
+* title text
+* titleEN text
+* description text
+* descriptionEN text
+* bannerImage text
+* dealPrice numeric
+* isActive bool default true
+* sortOrder int4 default 0
+* createdAt timestamptz
+* updatedAt timestamptz
+
+**table bundle_deal_items:**
+* id int8 primary
+* bundleID int8 foreign key to bundle_deals.id
+* propertyID int8 foreign key to item_properties.id
+* quantity int4 (fixed quantity inside one bundle)
+
+**storage bucket bundle_banner:**
+* Public read access for horizontal bundle artwork.
+* Admin uploads use Firebase-verified signed upload URLs from the
+  `manage-bundles` Edge Function.
 
 **table affiliate_codes:**
 * id int8 primary

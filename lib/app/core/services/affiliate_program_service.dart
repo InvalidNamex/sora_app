@@ -205,6 +205,26 @@ class AffiliateProgramService {
     return _invoke('admin_affiliate_queue', const {}, requiresAuth: true);
   }
 
+  static Future<List<AffiliateAdminUserSummary>> getAdminAffiliateUsers({
+    String query = '',
+  }) async {
+    final data = await _invoke('admin_affiliate_users', {
+      'query': query.trim(),
+    }, requiresAuth: true);
+    return ((data['users'] as List?) ?? const [])
+        .whereType<Map>()
+        .map(
+          (row) => AffiliateAdminUserSummary.fromJson(
+            Map<String, dynamic>.from(row),
+          ),
+        )
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> getAdminReports() {
+    return _invoke('admin_reports', const {}, requiresAuth: true);
+  }
+
   static Future<Map<String, dynamic>> reviewApplication({
     required int applicationId,
     required bool approve,

@@ -4,12 +4,16 @@ import '../core/middleware/route_guards.dart';
 import '../global_widgets/app_scaffold.dart';
 import '../modules/address_book/address_binding.dart';
 import '../modules/address_book/address_view.dart';
+import '../modules/account_deletion/account_deletion_binding.dart';
+import '../modules/account_deletion/account_deletion_view.dart';
 import '../modules/admin/admin_binding.dart';
 import '../modules/admin/admin_view.dart';
 import '../modules/admin/affiliate_management/affiliate_management_binding.dart';
 import '../modules/admin/affiliate_management/affiliate_management_view.dart';
 import '../modules/admin/catalog_management/catalog_management_binding.dart';
 import '../modules/admin/catalog_management/catalog_management_view.dart';
+import '../modules/admin/bundle_management/bundle_management_binding.dart';
+import '../modules/admin/bundle_management/bundle_management_view.dart';
 import '../modules/admin/notifications/notifications_binding.dart';
 import '../modules/admin/notifications/notifications_view.dart';
 import '../modules/admin/order_management/order_management_binding.dart';
@@ -21,6 +25,8 @@ import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
 import '../modules/checkout/checkout_binding.dart';
 import '../modules/checkout/checkout_view.dart';
+import '../modules/bundle_detail/bundle_detail_binding.dart';
+import '../modules/bundle_detail/bundle_detail_view.dart';
 import '../modules/item/item_binding.dart';
 import '../modules/item/item_view.dart';
 import '../modules/splash/splash_binding.dart';
@@ -31,6 +37,7 @@ import '../modules/history/order_detail_binding.dart';
 import '../modules/history/order_detail_view.dart';
 import '../modules/location_picker/location_picker_binding.dart';
 import '../modules/location_picker/location_picker_page.dart';
+import '../modules/legal/privacy_policy_view.dart';
 
 part 'app_routes.dart';
 
@@ -61,7 +68,11 @@ class AppPages {
       name: Routes.checkout,
       page: () => const CheckoutView(),
       binding: CheckoutBinding(),
-      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: Routes.bundleDetail,
+      page: () => const BundleDetailView(),
+      binding: BundleDetailBinding(),
     ),
     GetPage(
       name: Routes.addressBook,
@@ -100,6 +111,12 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminBundles,
+      page: () => const BundleManagementView(),
+      binding: BundleManagementBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.adminReports,
       page: () => const ReportsView(),
       binding: ReportsBinding(),
@@ -134,6 +151,13 @@ class AppPages {
       name: Routes.locationPicker,
       page: () => const LocationPickerPage(),
       binding: LocationPickerBinding(),
+    ),
+    GetPage(name: Routes.privacyPolicy, page: () => const PrivacyPolicyView()),
+    GetPage(
+      name: Routes.accountDeletion,
+      page: () => const AccountDeletionView(),
+      binding: AccountDeletionBinding(),
+      middlewares: [AuthGuard()],
     ),
   ];
 }

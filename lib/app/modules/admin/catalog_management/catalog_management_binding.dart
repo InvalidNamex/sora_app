@@ -1,9 +1,12 @@
 import 'package:get/get.dart';
+
 import 'catalog_management_controller.dart';
 
-class CatalogManagementBinding extends Bindings {
+class CatalogManagementBinding extends Binding {
   @override
-  void dependencies() {
-    Get.lazyPut<CatalogManagementController>(() => CatalogManagementController());
-  }
+  List<Bind> dependencies() => [
+    Bind.lazyPut<CatalogManagementController>(
+      () => CatalogManagementController(),
+    ),
+  ];
 }

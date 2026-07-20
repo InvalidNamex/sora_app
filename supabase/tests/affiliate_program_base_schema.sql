@@ -26,6 +26,7 @@ create table public.item_properties (
 create table public.address_book (
   id bigserial primary key,
   "userID" bigint not null references public.users(id),
+  "addressName" text,
   address text not null,
   landmark text
 );

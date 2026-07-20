@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
+import '../../core/models/cart_item_model.dart';
 import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/share_service.dart';
 import '../../core/services/supabase_service.dart';
@@ -31,13 +32,17 @@ class ItemController extends GetxController {
   ItemPropertyModel? get defaultProperty =>
       properties.firstWhereOrNull((p) => p.isDefault);
 
-  bool get selectedPropertyInCart {
+  CartItemModel? get selectedCartItem {
     final propertyId = selectedProperty?.id;
-    if (propertyId == null) return false;
-    return CartController.to.cartItems.any(
+    if (propertyId == null) return null;
+    return CartController.to.cartItems.firstWhereOrNull(
       (cartItem) => cartItem.itemPropertyId == propertyId,
     );
   }
+
+  bool get selectedPropertyInCart => selectedCartItem != null;
+
+  int get selectedPropertyQuantity => selectedCartItem?.quantity ?? 0;
 
   String get effectiveDescription {
     final propertyDescription = (selectedProperty?.propertyDescription ?? '')
@@ -110,6 +115,15 @@ class ItemController extends GetxController {
     if (currentItem == null || property == null || !property.inStock) return;
     if (addingToCart.value) return;
 
+    await addSelectedPropertyToCart();
+  }
+
+  Future<void> addSelectedPropertyToCart() async {
+    final currentItem = item.value;
+    final property = selectedProperty;
+    if (currentItem == null || property == null || !property.inStock) return;
+    if (addingToCart.value) return;
+
     addingToCart.value = true;
     try {
       await CartController.to.addItem(
@@ -119,14 +133,27 @@ class ItemController extends GetxController {
         displayProperty: defaultProperty,
       );
       await pulseCartFab();
-      AppSnackbar.show(
-        'added_to_cart'.tr,
-        '${currentItem.itemName} · ${property.sizeMl} ml',
-        type: AppSnackbarType.success,
-        duration: const Duration(seconds: 2),
-      );
     } catch (e) {
       debugPrint('[ItemController] add to cart error: $e');
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
+    } finally {
+      addingToCart.value = false;
+    }
+  }
+
+  Future<void> incrementSelectedProperty() async {
+    await addSelectedPropertyToCart();
+  }
+
+  Future<void> decrementSelectedProperty() async {
+    final cartItem = selectedCartItem;
+    if (cartItem == null || addingToCart.value) return;
+
+    addingToCart.value = true;
+    try {
+      await CartController.to.decrement(cartItem);
+    } catch (e) {
+      debugPrint('[ItemController] decrement cart item error: $e');
       AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
     } finally {
       addingToCart.value = false;

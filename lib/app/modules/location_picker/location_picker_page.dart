@@ -15,8 +15,7 @@ class LocationPickerPage extends GetView<LocationPickerController> {
 
   @override
   Widget build(BuildContext context) {
-    final initialCenter =
-        controller.selectedLatLng.value ?? _kDefaultCenter;
+    final initialCenter = controller.selectedLatLng.value ?? _kDefaultCenter;
 
     return Scaffold(
       appBar: AppBar(
@@ -31,12 +30,12 @@ class LocationPickerPage extends GetView<LocationPickerController> {
             options: MapOptions(
               initialCenter: initialCenter,
               initialZoom: _kDefaultZoom,
+              onMapReady: controller.onMapReady,
               onTap: (_, point) => controller.setLocation(point),
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.sora.app',
               ),
               Obx(() {
@@ -71,7 +70,9 @@ class LocationPickerPage extends GetView<LocationPickerController> {
               right: 24,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(12),
@@ -95,7 +96,9 @@ class LocationPickerPage extends GetView<LocationPickerController> {
               right: 24,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -104,24 +107,87 @@ class LocationPickerPage extends GetView<LocationPickerController> {
                       color: Colors.black12,
                       blurRadius: 6,
                       offset: Offset(0, 2),
-                    )
+                    ),
                   ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.my_location,
-                        size: 16, color: AppConstants.darkBeige),
+                    const Icon(
+                      Icons.my_location,
+                      size: 16,
+                      color: AppConstants.darkBeige,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '${latLng.latitude.toStringAsFixed(6)}, '
                       '${latLng.longitude.toStringAsFixed(6)}',
                       style: const TextStyle(
-                          fontSize: 12,
-                          color: AppConstants.darkBeige,
-                          fontWeight: FontWeight.w600),
+                        fontSize: 12,
+                        color: AppConstants.darkBeige,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
+                ),
+              ),
+            );
+          }),
+
+          PositionedDirectional(
+            end: 16,
+            bottom: 96,
+            child: Obx(
+              () => FloatingActionButton.small(
+                heroTag: 'current-location',
+                tooltip: 'use_current_location'.tr,
+                onPressed: controller.isLocating.value
+                    ? null
+                    : controller.findCurrentLocation,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                foregroundColor: AppConstants.darkBeige,
+                child: controller.isLocating.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppConstants.darkBeige,
+                        ),
+                      )
+                    : const Icon(Icons.my_location),
+              ),
+            ),
+          ),
+
+          Obx(() {
+            final errorKey = controller.locationErrorKey.value;
+            if (errorKey == null) return const SizedBox.shrink();
+            return PositionedDirectional(
+              start: 16,
+              end: 16,
+              bottom: 96,
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 3,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 52, 8),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_off_outlined,
+                        color: AppConstants.darkBeige,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(errorKey.tr)),
+                      if (controller.canOpenLocationSettings)
+                        TextButton(
+                          onPressed: controller.openLocationSettings,
+                          child: Text('settings'.tr),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -132,22 +198,25 @@ class LocationPickerPage extends GetView<LocationPickerController> {
             bottom: 28,
             left: 24,
             right: 24,
-            child: Obx(() => SizedBox(
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConstants.darkBeige,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+            child: Obx(
+              () => SizedBox(
+                height: 52,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.darkBeige,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    onPressed: controller.selectedLatLng.value == null
-                        ? null
-                        : controller.confirm,
-                    icon: const Icon(Icons.check),
-                    label: Text('confirm_location'.tr),
                   ),
-                )),
+                  onPressed: controller.selectedLatLng.value == null
+                      ? null
+                      : controller.confirm,
+                  icon: const Icon(Icons.check),
+                  label: Text('confirm_location'.tr),
+                ),
+              ),
+            ),
           ),
         ],
       ),

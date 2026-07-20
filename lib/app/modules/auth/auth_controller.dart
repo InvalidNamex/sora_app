@@ -80,6 +80,8 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   }
 
   bool get isLoggedIn => currentUser.value != null;
+  bool get isAppleSignInAvailable =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   GoogleSignIn get _nativeGoogleSignIn => _googleSignIn ??= GoogleSignIn(
     serverClientId: AppConstants.googleWebClientId,
@@ -155,9 +157,12 @@ class AuthController extends GetxController with WidgetsBindingObserver {
             .select()
             .eq('uid', user.uid)
             .maybeSingle();
-        if (result != null) {
+        if (result != null && result['isDeleted'] != true) {
           currentUser.value = UserModel.fromJson(result);
           unawaited(AffiliateProgramService.syncPendingAttribution());
+        } else if (result?['isDeleted'] == true) {
+          currentUser.value = null;
+          await _auth.signOut();
         }
       } catch (e) {
         debugPrint('[AuthController] Failed to restore user from Supabase: $e');
@@ -205,6 +210,47 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('[AuthController] Google sign-in error: $e');
       AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ── Sign in with Apple (iOS only) ────────────────────────────────────────
+
+  Future<void> signInWithApple() async {
+    if (!isAppleSignInAvailable) return;
+
+    try {
+      isLoading.value = true;
+      final provider = fb.AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      final result = await _auth.signInWithProvider(provider);
+      final user = result.user;
+      if (user == null) {
+        throw Exception(
+          'Sign in with Apple completed without a Firebase user.',
+        );
+      }
+      await _postAuthSetup(user);
+    } on fb.FirebaseAuthException catch (error, stack) {
+      _logFirebaseAuthException('Sign in with Apple', error, stack);
+      if (error.code != 'web-context-cancelled' &&
+          error.code != 'canceled' &&
+          error.code != 'cancelled') {
+        AppSnackbar.show(
+          'error'.tr,
+          error.message ?? 'Sign in with Apple failed. Please try again.',
+          type: AppSnackbarType.error,
+        );
+      }
+    } catch (error) {
+      debugPrint('[AuthController] Sign in with Apple error: $error');
+      AppSnackbar.show(
+        'error'.tr,
+        error.toString(),
+        type: AppSnackbarType.error,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -471,6 +517,11 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         .maybeSingle();
 
     if (existingData != null) {
+      if (existingData['isDeleted'] == true) {
+        throw StateError(
+          'This account has been deleted and cannot be restored.',
+        );
+      }
       final payload = <String, dynamic>{};
 
       final currentName = existingData['name'] as String?;
@@ -699,10 +750,15 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   /// user's Supabase cart, then clears local storage.
   Future<void> _syncGuestCart(int userId) async {
     final rawList = _storage.read<List>(AppConstants.kGuestCart);
-    if (rawList == null || rawList.isEmpty) return;
+    final rawBundles = _storage.read<List>(AppConstants.kGuestBundleCart);
+    if ((rawList == null || rawList.isEmpty) &&
+        (rawBundles == null || rawBundles.isEmpty)) {
+      return;
+    }
 
     final client = SupabaseService.client;
-    for (final item in rawList.cast<Map<String, dynamic>>()) {
+    for (final raw in rawList ?? const []) {
+      final item = Map<String, dynamic>.from(raw as Map);
       final itemPropertyId = item['itemPropertyId'] as int;
       final itemId = (item['itemId'] as num?)?.toInt() ?? itemPropertyId;
       final quantity = item['quantity'] as int;
@@ -729,7 +785,36 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         });
       }
     }
+
+    for (final raw in rawBundles ?? const []) {
+      final entry = Map<String, dynamic>.from(raw as Map);
+      final bundle = Map<String, dynamic>.from(entry['bundle'] as Map);
+      final bundleId = (bundle['id'] as num?)?.toInt() ?? 0;
+      final quantity = (entry['quantity'] as num?)?.toInt() ?? 0;
+      if (bundleId <= 0 || quantity <= 0) continue;
+
+      final existing = await client
+          .from('cart')
+          .select('id, quantity')
+          .eq('userID', userId)
+          .eq('bundleID', bundleId)
+          .maybeSingle();
+      if (existing == null) {
+        await client.from('cart').insert({
+          'userID': userId,
+          'bundleID': bundleId,
+          'quantity': quantity,
+        });
+      } else {
+        final current = (existing['quantity'] as num?)?.toInt() ?? 0;
+        await client
+            .from('cart')
+            .update({'quantity': current + quantity})
+            .eq('id', existing['id'] as Object);
+      }
+    }
     await _storage.remove(AppConstants.kGuestCart);
+    await _storage.remove(AppConstants.kGuestBundleCart);
   }
 
   // ── User Data management ──────────────────────────────────────────────────
@@ -801,6 +886,57 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Revokes Apple's authorization before deleting an Apple-backed account.
+  ///
+  /// Apple only returns a fresh authorization code after the native
+  /// confirmation sheet, so this intentionally reauthenticates at deletion
+  /// time. Other providers require no extra client-side revocation step.
+  Future<void> revokeAppleTokenForAccountDeletion() async {
+    if (!isAppleSignInAvailable) return;
+    final user = _auth.currentUser;
+    if (user == null ||
+        !user.providerData.any((info) => info.providerId == 'apple.com')) {
+      return;
+    }
+
+    final provider = fb.AppleAuthProvider()
+      ..addScope('email')
+      ..addScope('name');
+    final credential = await _auth.signInWithProvider(provider);
+    final authorizationCode = credential.additionalUserInfo?.authorizationCode;
+    if (authorizationCode == null || authorizationCode.isEmpty) {
+      throw StateError(
+        'Apple could not verify this deletion request. Please try again.',
+      );
+    }
+    await _auth.revokeTokenWithAuthorizationCode(authorizationCode);
+  }
+
+  /// Clears the device session after the server has irreversibly deleted it.
+  Future<void> finishAccountDeletion() async {
+    try {
+      if (!kIsWeb) {
+        await _nativeGoogleSignIn.signOut();
+      }
+    } catch (error) {
+      debugPrint('[AuthController] Provider cleanup skipped: $error');
+    }
+
+    try {
+      await _auth.signOut();
+      await SupabaseService.client.auth.signOut();
+    } finally {
+      await _storage.remove(AppConstants.kGuestCart);
+      await _storage.remove(AppConstants.kGuestBundleCart);
+      currentUser.value = null;
+      AffiliateProgramService.clearSessionCache();
+      if (Get.isRegistered<NavController>()) {
+        NavController.to.setIndex(0);
+      }
+      Get.offAllNamed(Routes.home);
     }
   }
 }

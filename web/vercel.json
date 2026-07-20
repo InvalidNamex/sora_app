@@ -25,6 +25,10 @@
   ],
   "rewrites": [
     {
+      "source": "/privacy_policy",
+      "destination": "/privacy_policy/index.html"
+    },
+    {
       "source": "/splash",
       "destination": "/index.html"
     },
@@ -42,6 +46,10 @@
     },
     {
       "source": "/item/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/bundle/:path*",
       "destination": "/index.html"
     },
     {
@@ -81,6 +89,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/admin-bundles",
+      "destination": "/index.html"
+    },
+    {
       "source": "/admin-reports",
       "destination": "/index.html"
     },
@@ -94,6 +106,10 @@
     },
     {
       "source": "/location-picker",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/delete-account",
       "destination": "/index.html"
     }
   ]

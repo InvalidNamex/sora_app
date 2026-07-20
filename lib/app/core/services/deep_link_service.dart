@@ -111,6 +111,11 @@ class DeepLinkService extends GetxService {
         );
         await _openRoute(Routes.itemPath(itemId));
         return true;
+      case 'bundle':
+        final bundleId = _idFrom(segments, uri);
+        if (bundleId == null) return false;
+        await _openRoute(Routes.bundlePath(bundleId));
+        return true;
       case 'orders':
         final orderId = _idFrom(segments, uri);
         if (orderId == null) return false;
@@ -191,6 +196,11 @@ class DeepLinkService extends GetxService {
 
     if (Get.currentRoute == Routes.splash) {
       await Get.offAllNamed(route);
+      return;
+    }
+
+    if (Get.currentRoute == Routes.auth) {
+      await Get.offNamed(route);
       return;
     }
 

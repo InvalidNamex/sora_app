@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -15,8 +17,19 @@ import '../auth/auth_controller.dart';
 /// Profile tab — displays user info and navigation tiles.
 /// Uses permanently-registered [AuthController] and [SettingsController];
 /// no separate controller needed.
-class ProfileView extends StatelessWidget {
+class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
+
+  @override
+  State<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<ProfileView> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(AuthController.to.refreshCurrentUser());
+  }
 
   @override
   Widget build(BuildContext context) {

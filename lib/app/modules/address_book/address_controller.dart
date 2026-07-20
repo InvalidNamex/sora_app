@@ -42,11 +42,17 @@ class AddressController extends GetxController {
   }
 
   Future<void> addAddress(
-      String address, String landmark, double? lat, double? lng) async {
+    String addressName,
+    String address,
+    String landmark,
+    double? lat,
+    double? lng,
+  ) async {
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) return;
     await SupabaseService.client.from('address_book').insert({
       'userID': userId,
+      'addressName': addressName,
       'address': address,
       'landmark': landmark,
       'isDefault': addresses.isEmpty,
@@ -57,13 +63,23 @@ class AddressController extends GetxController {
   }
 
   Future<void> updateAddress(
-      int id, String address, String landmark, double? lat, double? lng) async {
-    await SupabaseService.client.from('address_book').update({
-      'address': address,
-      'landmark': landmark,
-      'latitude': ?lat,
-      'longitude': ?lng,
-    }).eq('id', id);
+    int id,
+    String addressName,
+    String address,
+    String landmark,
+    double? lat,
+    double? lng,
+  ) async {
+    await SupabaseService.client
+        .from('address_book')
+        .update({
+          'addressName': addressName,
+          'address': address,
+          'landmark': landmark,
+          'latitude': ?lat,
+          'longitude': ?lng,
+        })
+        .eq('id', id);
     await fetchAddresses();
   }
 
@@ -72,23 +88,22 @@ class AddressController extends GetxController {
     if (userId == null) return;
 
     addresses.value = addresses
-      .map((address) => address.copyWith(isDefault: address.id == id))
-      .toList();
+        .map((address) => address.copyWith(isDefault: address.id == id))
+        .toList();
 
     await SupabaseService.client
         .from('address_book')
-        .update({'isDefault': false}).eq('userID', userId);
+        .update({'isDefault': false})
+        .eq('userID', userId);
     await SupabaseService.client
         .from('address_book')
-        .update({'isDefault': true}).eq('id', id);
+        .update({'isDefault': true})
+        .eq('id', id);
     await fetchAddresses();
   }
 
   Future<void> deleteAddress(int id) async {
-    await SupabaseService.client
-        .from('address_book')
-        .delete()
-        .eq('id', id);
+    await SupabaseService.client.from('address_book').delete().eq('id', id);
     await fetchAddresses();
   }
 }

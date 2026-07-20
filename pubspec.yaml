@@ -4,7 +4,7 @@ description: "A new Flutter project."
 publish_to: 'none' 
 
 
-version: 1.0.0+8
+version: 1.0.0+9
 
 environment:
   sdk: ^3.11.1
@@ -59,6 +59,7 @@ dependencies:
   # Cross-platform map (OpenStreetMap, no API key needed)
   flutter_map: ^7.0.0
   latlong2: ^0.9.1
+  geolocator: ^14.0.2
   image_picker: ^1.2.3
   flutter_local_notifications: ^22.0.1
 
@@ -71,16 +72,16 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#F1F0E9"
-  image: assets/images/logoWithBG.png
+  image: assets/images/splash_wordmark.png
   android_gravity: center
   ios_content_mode: scaleAspectFit
   web_image_mode: contain
   color_dark: "#F1F0E9"
-  image_dark: assets/images/logoWithBG.png
+  image_dark: assets/images/splash_wordmark.png
   android_12:
-    image: assets/images/logoWithBG.png
+    image: assets/images/splash_wordmark.png
     color: "#F1F0E9"
-    image_dark: assets/images/logoWithBG.png
+    image_dark: assets/images/splash_wordmark.png
     color_dark: "#F1F0E9"
 
 flutter_launcher_icons:

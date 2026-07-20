@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/banner_model.dart';
-import '../../core/models/promotion_model.dart';
-import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/responsive.dart';
 import '../../modules/cart/cart_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
@@ -13,6 +10,7 @@ import '../../global_widgets/network_image_with_placeholder.dart';
 import '../../routes/app_pages.dart';
 import 'home_controller.dart';
 import 'widgets/banner_carousel.dart';
+import 'widgets/bundle_deal_carousel.dart';
 import 'widgets/category_strip.dart';
 import 'widgets/item_grid.dart';
 
@@ -51,7 +49,7 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 12),
       itemCount: results.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final entry = results[index];
         final prop = entry.primaryProperty;
@@ -248,30 +246,49 @@ class HomeView extends GetView<HomeController> {
             );
           }),
 
-          // ── Exclusive Promo banners ────────────────────────────────────────
+          // ── Bundle deals ───────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Obx(() {
-              final promos = controller.activePromotions
-                  .where((p) => !p.isExpired)
-                  .toList();
-              if (promos.isEmpty) return const SizedBox.shrink();
-              if (promos.length == 1) {
-                return _PromoBanner(promotion: promos.first);
+              final loading = controller.isLoadingBundles.value;
+              final bundles = controller.bundleDeals.toList();
+              if (!loading && bundles.isEmpty) {
+                return const SizedBox.shrink();
               }
-              return SizedBox(
-                height: 148,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: promos.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, i) => SizedBox(
-                    width: 280,
-                    child: _PromoBanner(promotion: promos[i], compact: true),
-                  ),
+              return Padding(
+                padding: const EdgeInsets.only(top: 14, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.all_inbox_outlined,
+                            color: AppConstants.darkBeige,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'bundle_deal'.tr,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (loading)
+                      Container(
+                        height: 140,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppConstants.lightBeige,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      )
+                    else
+                      BundleDealCarousel(bundles: bundles),
+                  ],
                 ),
               );
             }),
@@ -492,121 +509,5 @@ class _CollapsingHeroDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _CollapsingHeroDelegate oldDelegate) {
     return oldDelegate.maxHeight != maxHeight || oldDelegate.child != child;
-  }
-}
-
-class _PromoBanner extends StatelessWidget {
-  const _PromoBanner({required this.promotion, this.compact = false});
-
-  final PromotionModel promotion;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: compact ? 0 : 16,
-        vertical: compact ? 4 : 12,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: compact ? 10 : 18,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppConstants.darkBeige, AppConstants.mediumBeige],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppConstants.darkBeige.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'exclusive_offer'.tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  promotion.localizedText,
-                  maxLines: compact ? 2 : 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: compact ? 16 : 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${AppConstants.currency} ${promotion.promotionDiscount} ${'discount'.tr}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white30),
-            ),
-            child: GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: promotion.promotionCode));
-                AppSnackbar.show(
-                  'copied'.tr,
-                  promotion.promotionCode,
-                  type: AppSnackbarType.info,
-                  duration: const Duration(seconds: 2),
-                );
-              },
-              child: Row(
-                children: [
-                  Text(
-                    promotion.promotionCode,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.copy, color: Colors.white, size: 14),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

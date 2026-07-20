@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/models/cart_item_model.dart';
+import '../../core/models/bundle_deal_model.dart';
 import '../../core/models/address_model.dart';
 import '../../core/utils/responsive.dart';
 import '../../routes/app_pages.dart';
@@ -27,11 +29,77 @@ class CheckoutView extends GetView<CheckoutController> {
             child: CircularProgressIndicator(color: AppConstants.darkBeige),
           );
         }
+        if (!AuthController.to.isLoggedIn) {
+          return _CheckoutLoginPrompt(c: controller);
+        }
         return ResponsiveLayout(
           mobile: _MobileLayout(c: controller),
           desktop: _DesktopLayout(c: controller),
         );
       }),
+    );
+  }
+}
+
+class _CheckoutLoginPrompt extends StatelessWidget {
+  const _CheckoutLoginPrompt({required this.c});
+  final CheckoutController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppConstants.mediumBeige.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_person_outlined,
+                  size: 36,
+                  color: AppConstants.darkBeige,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'checkout_login_title'.tr,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'checkout_login_message'.tr,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.68),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: c.startLoginForCheckout,
+                  icon: const Icon(Icons.login_outlined),
+                  label: Text('sign_in'.tr),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -264,7 +332,7 @@ class _AddressCard extends StatelessWidget {
                         padding: const EdgeInsetsDirectional.only(end: 8),
                         child: ChoiceChip(
                           label: Text(
-                            a.address,
+                            a.addressName.isEmpty ? a.address : a.addressName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -362,10 +430,17 @@ class _AddressSelectSheet extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    title: Text(addr.address),
-                    subtitle: addr.landmark.isNotEmpty
-                        ? Text(addr.landmark)
-                        : null,
+                    title: Text(
+                      addr.addressName.isEmpty
+                          ? addr.address
+                          : addr.addressName,
+                    ),
+                    subtitle: Text(
+                      [
+                        if (addr.addressName.isNotEmpty) addr.address,
+                        if (addr.landmark.isNotEmpty) addr.landmark,
+                      ].join('\n'),
+                    ),
                     onTap: () {
                       onSelect(addr);
                       Navigator.of(context).pop();
@@ -401,6 +476,22 @@ class _PromoCard extends StatelessWidget {
     return _SectionCard(
       title: 'promo_code'.tr,
       child: Obx(() {
+        if (c.hasBundleDeal) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppConstants.lightBeige.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: AppConstants.darkBeige),
+                const SizedBox(width: 10),
+                Expanded(child: Text('promo_unavailable_with_bundle'.tr)),
+              ],
+            ),
+          );
+        }
         final applied = c.appliedPromo.value;
         if (applied != null) {
           return Container(
@@ -515,36 +606,29 @@ class _OrderSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cart = CartController.to.cartItems;
+    final bundles = CartController.to.bundleItems;
     return _SectionCard(
       title: 'order_summary'.tr,
       child: Obx(
         () => Column(
           children: [
-            ...cart.map(
-              (item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${item.itemName} (${item.sizeMl} ml) × ${item.quantity}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                    Text(
-                      '${AppConstants.currency} ${item.subtotal.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            ...cart.map((item) => _CheckoutCartItemRow(item: item, c: c)),
+            ...bundles.map((item) => _CheckoutBundleRow(item: item)),
             const Divider(height: 24),
             _SummaryRow(
               label: 'subtotal'.tr,
               value:
-                  '${AppConstants.currency} ${c.cartTotal.toStringAsFixed(2)}',
+                  '${AppConstants.currency} '
+                  '${CartController.to.regularTotalPrice.toStringAsFixed(2)}',
             ),
+            if (CartController.to.bundleSavings > 0)
+              _SummaryRow(
+                label: 'bundle_savings'.tr,
+                value:
+                    '- ${AppConstants.currency} '
+                    '${CartController.to.bundleSavings.toStringAsFixed(2)}',
+                valueColor: Colors.green.shade700,
+              ),
             if (c.discount.value > 0)
               _SummaryRow(
                 label: 'discount'.tr,
@@ -577,6 +661,219 @@ class _OrderSummaryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CheckoutBundleRow extends StatelessWidget {
+  const _CheckoutBundleRow({required this.item});
+  final BundleCartItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppConstants.mediumBeige.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppConstants.mediumBeige.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.lock_outline,
+                size: 18,
+                color: AppConstants.darkBeige,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.bundle.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text(
+                '${item.quantity} × ${'bundle'.tr}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...item.bundle.items.map(
+            (bundleItem) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${bundleItem.itemName} · '
+                      '${bundleItem.property.sizeMl} ml',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  Text(
+                    '× ${bundleItem.quantity * item.quantity}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${AppConstants.currency} '
+                '${item.regularSubtotal.toStringAsFixed(2)}',
+                style: const TextStyle(decoration: TextDecoration.lineThrough),
+              ),
+              Text(
+                '${AppConstants.currency} ${item.subtotal.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: AppConstants.darkBeige,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'bundle_quantities_locked'.tr,
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckoutCartItemRow extends StatelessWidget {
+  const _CheckoutCartItemRow({required this.item, required this.c});
+  final CartItemModel item;
+  final CheckoutController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.itemName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${item.sizeMl} ml · ${AppConstants.currency} '
+                  '${item.price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.65),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _CheckoutQuantityControl(item: item, c: c),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${AppConstants.currency} ${item.subtotal.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              IconButton(
+                tooltip: 'delete'.tr,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: Colors.red.shade400,
+                onPressed: () => c.removeCartItem(item),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckoutQuantityControl extends StatelessWidget {
+  const _CheckoutQuantityControl({required this.item, required this.c});
+  final CartItemModel item;
+  final CheckoutController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: AppConstants.mediumBeige.withValues(alpha: 0.35),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: item.quantity <= 1 ? 'delete'.tr : 'decrease'.tr,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              item.quantity <= 1 ? Icons.delete_outline : Icons.remove_rounded,
+              size: 18,
+            ),
+            color: AppConstants.darkBeige,
+            onPressed: () => c.decrementCartItem(item),
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '${item.quantity}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            tooltip: 'increase'.tr,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            color: AppConstants.darkBeige,
+            onPressed: () => c.incrementCartItem(item),
+          ),
+        ],
       ),
     );
   }

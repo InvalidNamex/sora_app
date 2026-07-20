@@ -81,6 +81,7 @@ class ItemView extends GetView<ItemController> {
             item: item,
             count: count,
             isInCart: controller.selectedPropertyInCart,
+            quantity: controller.selectedPropertyQuantity,
             isAdding: controller.addingToCart.value,
             controller: controller,
           ),
@@ -218,6 +219,7 @@ class _DesktopLayout extends StatelessWidget {
                           item: controller.item.value,
                           count: count,
                           isInCart: controller.selectedPropertyInCart,
+                          quantity: controller.selectedPropertyQuantity,
                           isAdding: controller.addingToCart.value,
                           controller: controller,
                         );
@@ -416,6 +418,7 @@ class _AddToCartBottomBar extends StatelessWidget {
     required this.item,
     required this.count,
     required this.isInCart,
+    required this.quantity,
     required this.isAdding,
     required this.controller,
   });
@@ -426,6 +429,7 @@ class _AddToCartBottomBar extends StatelessWidget {
   final dynamic item;
   final int count;
   final bool isInCart;
+  final int quantity;
   final bool isAdding;
   final ItemController controller;
 
@@ -455,72 +459,125 @@ class _AddToCartBottomBar extends StatelessWidget {
           scale: pulse ? 1.05 : 1.0,
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutBack,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.darkBeige,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              disabledBackgroundColor: Colors.grey.shade400,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: !inStock || prop == null || item == null || isAdding
-                ? null
-                : () async {
-                    HapticFeedback.mediumImpact();
-                    await controller.handleCartAction();
-                  },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
+          child: isInCart
+              ? Row(
                   children: [
-                    Icon(
-                      isInCart
-                          ? Icons.shopping_cart_checkout
-                          : Icons.shopping_bag_outlined,
+                    _SelectedItemQuantityControl(
+                      quantity: quantity,
+                      isBusy: isAdding,
+                      controller: controller,
                     ),
-                    if (count > 0)
-                      PositionedDirectional(
-                        top: -7,
-                        end: -9,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade600,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CartActionButton(
+                        inStock: inStock,
+                        isInCart: isInCart,
+                        isAdding: isAdding,
+                        prop: prop,
+                        item: item,
+                        count: count,
+                        controller: controller,
                       ),
+                    ),
                   ],
+                )
+              : _CartActionButton(
+                  inStock: inStock,
+                  isInCart: isInCart,
+                  isAdding: isAdding,
+                  prop: prop,
+                  item: item,
+                  count: count,
+                  controller: controller,
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  inStock
-                      ? (isInCart ? 'proceed_to_checkout'.tr : 'add_to_cart'.tr)
-                      : 'out_of_stock'.tr,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _CartActionButton extends StatelessWidget {
+  const _CartActionButton({
+    required this.inStock,
+    required this.isInCart,
+    required this.isAdding,
+    required this.prop,
+    required this.item,
+    required this.count,
+    required this.controller,
+  });
+
+  final bool inStock;
+  final bool isInCart;
+  final bool isAdding;
+  final dynamic prop;
+  final dynamic item;
+  final int count;
+  final ItemController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppConstants.darkBeige,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        disabledBackgroundColor: Colors.grey.shade400,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: !inStock || prop == null || item == null || isAdding
+          ? null
+          : () async {
+              HapticFeedback.mediumImpact();
+              await controller.handleCartAction();
+            },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                isInCart
+                    ? Icons.shopping_cart_checkout
+                    : Icons.shopping_bag_outlined,
+              ),
+              if (count > 0)
+                PositionedDirectional(
+                  top: -7,
+                  end: -9,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade600,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-              ],
+            ],
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              inStock
+                  ? (isInCart ? 'proceed_to_checkout'.tr : 'add_to_cart'.tr)
+                  : 'out_of_stock'.tr,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -534,6 +591,7 @@ class _AddToCartDesktopBtn extends StatelessWidget {
     required this.item,
     required this.count,
     required this.isInCart,
+    required this.quantity,
     required this.isAdding,
     required this.controller,
   });
@@ -544,6 +602,7 @@ class _AddToCartDesktopBtn extends StatelessWidget {
   final dynamic item;
   final int count;
   final bool isInCart;
+  final int quantity;
   final bool isAdding;
   final ItemController controller;
 
@@ -553,61 +612,99 @@ class _AddToCartDesktopBtn extends StatelessWidget {
       scale: pulse ? 1.05 : 1.0,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutBack,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.darkBeige,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
-          disabledBackgroundColor: Colors.grey.shade400,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: !inStock || prop == null || item == null || isAdding
-            ? null
-            : () async {
-                HapticFeedback.mediumImpact();
-                await controller.handleCartAction();
-              },
-        icon: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(
-              isInCart
-                  ? Icons.shopping_cart_checkout
-                  : Icons.shopping_bag_outlined,
-            ),
-            if (count > 0)
-              PositionedDirectional(
-                top: -7,
-                end: -9,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade600,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+      child: isInCart
+          ? Row(
+              children: [
+                _SelectedItemQuantityControl(
+                  quantity: quantity,
+                  isBusy: isAdding,
+                  controller: controller,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _CartActionButton(
+                    inStock: inStock,
+                    isInCart: isInCart,
+                    isAdding: isAdding,
+                    prop: prop,
+                    item: item,
+                    count: count,
+                    controller: controller,
                   ),
                 ),
-              ),
-          ],
+              ],
+            )
+          : _CartActionButton(
+              inStock: inStock,
+              isInCart: isInCart,
+              isAdding: isAdding,
+              prop: prop,
+              item: item,
+              count: count,
+              controller: controller,
+            ),
+    );
+  }
+}
+
+class _SelectedItemQuantityControl extends StatelessWidget {
+  const _SelectedItemQuantityControl({
+    required this.quantity,
+    required this.isBusy,
+    required this.controller,
+  });
+
+  final int quantity;
+  final bool isBusy;
+  final ItemController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(
+          color: AppConstants.mediumBeige.withValues(alpha: 0.5),
         ),
-        label: Text(
-          inStock
-              ? (isInCart ? 'proceed_to_checkout'.tr : 'add_to_cart'.tr)
-              : 'out_of_stock'.tr,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: quantity <= 1 ? 'delete'.tr : 'decrease'.tr,
+            icon: Icon(
+              quantity <= 1 ? Icons.delete_outline : Icons.remove_rounded,
+            ),
+            color: AppConstants.darkBeige,
+            onPressed: isBusy
+                ? null
+                : () async {
+                    HapticFeedback.selectionClick();
+                    await controller.decrementSelectedProperty();
+                  },
+          ),
+          SizedBox(
+            width: 30,
+            child: Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            tooltip: 'increase'.tr,
+            icon: const Icon(Icons.add_rounded),
+            color: AppConstants.darkBeige,
+            onPressed: isBusy
+                ? null
+                : () async {
+                    HapticFeedback.selectionClick();
+                    await controller.incrementSelectedProperty();
+                  },
+          ),
+        ],
       ),
     );
   }

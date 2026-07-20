@@ -6,12 +6,14 @@ import 'package:get_storage_wasm/get_storage_wasm.dart';
 import '../../core/constants/app_constants.dart';
 
 import '../../core/models/banner_model.dart';
+import '../../core/models/bundle_deal_model.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
 import '../../core/models/promotion_model.dart';
 import '../../core/models/sub_category_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/bundle_deal_service.dart';
 import '../../core/utils/app_snackbar.dart';
 
 /// View-local model combining an item with its first (primary) property.
@@ -32,6 +34,7 @@ class HomeController extends GetxController {
   static HomeController get to => Get.find();
 
   final banners = <BannerModel>[].obs;
+  final bundleDeals = <BundleDealModel>[].obs;
   final categories = <CategoryModel>[].obs;
   final subCategories = <SubCategoryModel>[].obs;
   final items = <ItemWithProperty>[].obs;
@@ -39,6 +42,7 @@ class HomeController extends GetxController {
   final activePromotions = <PromotionModel>[].obs;
 
   final isLoadingBanners = true.obs;
+  final isLoadingBundles = true.obs;
   final isLoadingCategories = true.obs;
   final isLoadingItems = true.obs;
   final hasItemsError = false.obs;
@@ -74,11 +78,15 @@ class HomeController extends GetxController {
         final json = Map<String, dynamic>.from(raw as Map);
         final item = ItemModel.fromJson(json);
         final props = (json['item_properties'] as List?)
-            ?.map((p) => ItemPropertyModel.fromJson(Map<String, dynamic>.from(p as Map)))
+            ?.map(
+              (p) => ItemPropertyModel.fromJson(
+                Map<String, dynamic>.from(p as Map),
+              ),
+            )
             .toList();
         final primary = (props != null && props.isNotEmpty)
-          ? props.firstWhereOrNull((p) => p.isDefault) ?? props.first
-          : null;
+            ? props.firstWhereOrNull((p) => p.isDefault) ?? props.first
+            : null;
         parsed.add(ItemWithProperty(item: item, primaryProperty: primary));
       } catch (e) {
         debugPrint('[HomeController] item parse error: $e');
@@ -114,11 +122,16 @@ class HomeController extends GetxController {
         final promoRes = await SupabaseService.client
             .from('promotions')
             .select()
-            .or('expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}')
+            .or(
+              'expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}',
+            )
             .order('created_at', ascending: false);
         final promoList = promoRes as List;
         activePromotions.value = promoList
-            .map((e) => PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) =>
+                  PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .where((p) => !p.isExpired)
             .toList();
       } catch (e) {
@@ -129,24 +142,32 @@ class HomeController extends GetxController {
       final bannerRes = await SupabaseService.client.from('banners').select();
       final freshBannersJson = bannerRes as List;
 
+      try {
+        bundleDeals.value = await BundleDealService.fetchBundles();
+      } catch (e, stackTrace) {
+        debugPrint('[HomeController] fetchBundles error: $e');
+        debugPrint('$stackTrace');
+        bundleDeals.clear();
+      } finally {
+        isLoadingBundles.value = false;
+      }
+
       // Fetch categories
       List categoryRes;
       try {
-        categoryRes = await SupabaseService.client
-            .from('categories')
-        .select();
+        categoryRes = await SupabaseService.client.from('categories').select();
       } catch (e1) {
         debugPrint('[HomeController] Failed to fetch categories: $e1');
-        categoryRes = await SupabaseService.client
-            .from('categories')
-        .select();
+        categoryRes = await SupabaseService.client.from('categories').select();
       }
       final freshCategoriesJson = categoryRes;
 
       // Fetch items (default landing list)
       final itemRes = await SupabaseService.client
           .from('items')
-          .select('id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)')
+          .select(
+            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)',
+          )
           .order('isFeatured', ascending: false)
           .order('id', ascending: false)
           .limit(50);
@@ -154,23 +175,39 @@ class HomeController extends GetxController {
 
       // Compare with cache
       final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
-      final cachedCategories = storage.read<List>(AppConstants.kCachedCategories);
+      final cachedCategories = storage.read<List>(
+        AppConstants.kCachedCategories,
+      );
       final cachedItems = storage.read<List>(AppConstants.kCachedItems);
 
-      final bannersChanged = jsonEncode(cachedBanners) != jsonEncode(freshBannersJson);
-      final categoriesChanged = jsonEncode(cachedCategories) != jsonEncode(freshCategoriesJson);
-      final itemsChanged = jsonEncode(cachedItems) != jsonEncode(freshItemsJson);
+      final bannersChanged =
+          jsonEncode(cachedBanners) != jsonEncode(freshBannersJson);
+      final categoriesChanged =
+          jsonEncode(cachedCategories) != jsonEncode(freshCategoriesJson);
+      final itemsChanged =
+          jsonEncode(cachedItems) != jsonEncode(freshItemsJson);
 
-      final hasChanges = bannersChanged || categoriesChanged || itemsChanged ||
-          cachedBanners == null || cachedCategories == null || cachedItems == null ||
-          banners.isEmpty || categories.isEmpty || items.isEmpty;
+      final hasChanges =
+          bannersChanged ||
+          categoriesChanged ||
+          itemsChanged ||
+          cachedBanners == null ||
+          cachedCategories == null ||
+          cachedItems == null ||
+          banners.isEmpty ||
+          categories.isEmpty ||
+          items.isEmpty;
 
       if (hasChanges) {
         // Save to cache
         await storage.write(AppConstants.kCachedBanners, freshBannersJson);
-        await storage.write(AppConstants.kCachedCategories, freshCategoriesJson);
+        await storage.write(
+          AppConstants.kCachedCategories,
+          freshCategoriesJson,
+        );
         // Only update items cache if we are on the default view
-        if (selectedCategoryId.value == null && selectedSubCategoryId.value == null) {
+        if (selectedCategoryId.value == null &&
+            selectedSubCategoryId.value == null) {
           await storage.write(AppConstants.kCachedItems, freshItemsJson);
         }
 
@@ -183,7 +220,8 @@ class HomeController extends GetxController {
             .toList();
 
         // Update default items if currently displaying default
-        if (selectedCategoryId.value == null && selectedSubCategoryId.value == null) {
+        if (selectedCategoryId.value == null &&
+            selectedSubCategoryId.value == null) {
           items.value = _parseItems(freshItemsJson);
           _applyFilters();
         }
@@ -191,26 +229,33 @@ class HomeController extends GetxController {
 
       // Reset loading states
       isLoadingBanners.value = false;
+      isLoadingBundles.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
       hasItemsError.value = false;
 
       if (selectedCategoryId.value != null) {
-        final subCategoryResponse =
-            await _fetchSubCategoriesForCategory(selectedCategoryId.value!);
+        final subCategoryResponse = await _fetchSubCategoriesForCategory(
+          selectedCategoryId.value!,
+        );
         subCategories.value = subCategoryResponse
-            .map((e) => SubCategoryModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) => SubCategoryModel.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ),
+            )
             .toList();
 
         final selectedSubCategory = selectedSubCategoryId.value;
         if (selectedSubCategory != null &&
-            !subCategories.any((subCategory) => subCategory.id == selectedSubCategory)) {
+            !subCategories.any(
+              (subCategory) => subCategory.id == selectedSubCategory,
+            )) {
           selectedSubCategoryId.value = null;
         }
 
         await _fetchItems();
       }
-
     } catch (e, st) {
       debugPrint('[HomeController] checkForUpdates error: $e');
       debugPrint('[HomeController] stacktrace: $st');
@@ -218,6 +263,7 @@ class HomeController extends GetxController {
         hasItemsError.value = true;
       }
       isLoadingBanners.value = false;
+      isLoadingBundles.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
     } finally {
@@ -232,10 +278,13 @@ class HomeController extends GetxController {
       // Restore persisted filters
       final savedGender = storage.read<int>(AppConstants.kFilterGender);
       genderFilter.value = savedGender;
-      inStockOnly.value = storage.read<bool>(AppConstants.kFilterInStock) ?? false;
+      inStockOnly.value =
+          storage.read<bool>(AppConstants.kFilterInStock) ?? false;
 
       final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
-      final cachedCategories = storage.read<List>(AppConstants.kCachedCategories);
+      final cachedCategories = storage.read<List>(
+        AppConstants.kCachedCategories,
+      );
       final cachedItems = storage.read<List>(AppConstants.kCachedItems);
 
       if (cachedBanners != null) {
@@ -271,7 +320,10 @@ class HomeController extends GetxController {
     try {
       final response = await _fetchSubCategoriesForCategory(catId);
       subCategories.value = response
-          .map((e) => SubCategoryModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) =>
+                SubCategoryModel.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
     } catch (e) {
       debugPrint('[HomeController] fetchSubCategories error: $e');
@@ -291,10 +343,15 @@ class HomeController extends GetxController {
     try {
       var query = SupabaseService.client
           .from('items')
-          .select('id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)');
+          .select(
+            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)',
+          );
 
       if (selectedSubCategoryId.value != null) {
-        query = query.eq('subCategoryID', selectedSubCategoryId.value as Object);
+        query = query.eq(
+          'subCategoryID',
+          selectedSubCategoryId.value as Object,
+        );
       } else if (selectedCategoryId.value != null) {
         query = query.eq('categoryID', selectedCategoryId.value as Object);
       }
@@ -332,6 +389,7 @@ class HomeController extends GetxController {
     inStockOnly.value = v;
     GetStorage().write(AppConstants.kFilterInStock, v);
   }
+
   void setHoveredItem(int? id) => hoveredItemId.value = id;
 
   Future<void> pulseItemTap(int id) async {

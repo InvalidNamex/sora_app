@@ -25,24 +25,29 @@ class AuthView extends GetView<AuthController> {
                   Image.asset(
                     AppConstants.logoPath,
                     height: 110,
-                    errorBuilder: (context, error, stack) => const SizedBox(height: 110),
+                    errorBuilder: (context, error, stack) =>
+                        const SizedBox(height: 110),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'welcome'.tr,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppConstants.darkBeige,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: AppConstants.darkBeige,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'app_name'.tr,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppConstants.mediumBeige,
-                        ),
+                      color: AppConstants.mediumBeige,
+                    ),
                   ),
                   const SizedBox(height: 48),
+                  if (controller.isAppleSignInAvailable) ...[
+                    _AppleButton(controller: controller),
+                    const SizedBox(height: 12),
+                  ],
                   _GoogleButton(controller: controller),
                   const SizedBox(height: 24),
                   _OrDivider(),
@@ -58,28 +63,63 @@ class AuthView extends GetView<AuthController> {
   }
 }
 
+class _AppleButton extends StatelessWidget {
+  const _AppleButton({required this.controller});
+
+  final AuthController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: FilledButton.icon(
+          onPressed: controller.isLoading.value
+              ? null
+              : controller.signInWithApple,
+          icon: const Icon(Icons.apple, size: 24),
+          label: Text('sign_in_apple'.tr),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.black.withValues(alpha: 0.45),
+            disabledForegroundColor: Colors.white70,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GoogleButton extends StatelessWidget {
   const _GoogleButton({required this.controller});
   final AuthController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed:
-                controller.isLoading.value ? null : controller.signInWithGoogle,
-            icon: const _GoogleLogo(),
-            label: Text('sign_in_google'.tr),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: AppConstants.mediumBeige),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+    return Obx(
+      () => SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: OutlinedButton.icon(
+          onPressed: controller.isLoading.value
+              ? null
+              : controller.signInWithGoogle,
+          icon: const _GoogleLogo(),
+          label: Text('sign_in_google'.tr),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: AppConstants.mediumBeige),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 }
 
@@ -94,7 +134,9 @@ class _GoogleLogo extends StatelessWidget {
       height: 22,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppConstants.mediumBeige.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: AppConstants.mediumBeige.withValues(alpha: 0.5),
+        ),
         shape: BoxShape.circle,
       ),
       child: const Center(
@@ -178,39 +220,41 @@ class _PhoneSection extends StatelessWidget {
             prefixIcon: const Icon(Icons.phone_outlined),
 
             prefixStyle: const TextStyle(fontWeight: FontWeight.w600),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 16),
-        Obx(() => SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: controller.isLoading.value
-                    ? null
-                    : () {
-                        final phone = _phoneCtrl.text.trim();
-                        if (!_isValid(phone)) return;
-                        controller.sendPhoneOtp(
-                          '+2$phone',
-                          onCodeSent: () => Get.bottomSheet(
-                            PhoneOtpSheet(controller: controller),
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                          ),
-                        );
-                      },
-                child: controller.isLoading.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text('send_otp'.tr),
-              ),
-            )),
+        Obx(
+          () => SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              onPressed: controller.isLoading.value
+                  ? null
+                  : () {
+                      final phone = _phoneCtrl.text.trim();
+                      if (!_isValid(phone)) return;
+                      controller.sendPhoneOtp(
+                        '+2$phone',
+                        onCodeSent: () => Get.bottomSheet(
+                          PhoneOtpSheet(controller: controller),
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      );
+                    },
+              child: controller.isLoading.value
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text('send_otp'.tr),
+            ),
+          ),
+        ),
       ],
     );
   }

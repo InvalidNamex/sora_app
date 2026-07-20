@@ -25,16 +25,19 @@ class AddressView extends GetView<AddressController> {
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(
-              child: CircularProgressIndicator(
-                  color: AppConstants.darkBeige));
+            child: CircularProgressIndicator(color: AppConstants.darkBeige),
+          );
         }
         if (controller.addresses.isEmpty) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.location_off_outlined,
-                    size: 64, color: AppConstants.mediumBeige),
+                const Icon(
+                  Icons.location_off_outlined,
+                  size: 64,
+                  color: AppConstants.mediumBeige,
+                ),
                 const SizedBox(height: 12),
                 Text('no_addresses'.tr),
               ],
@@ -94,42 +97,61 @@ class _AddressTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          addr.address,
-                          maxLines: 3,
+                          addr.addressName.isEmpty
+                              ? addr.address
+                              : addr.addressName,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                       if (addr.isDefault) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppConstants.darkBeige
-                                .withValues(alpha: 0.15),
+                            color: AppConstants.darkBeige.withValues(
+                              alpha: 0.15,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             'default'.tr,
                             style: const TextStyle(
-                                fontSize: 11,
-                                color: AppConstants.darkBeige,
-                                fontWeight: FontWeight.bold),
+                              fontSize: 11,
+                              color: AppConstants.darkBeige,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ],
                   ),
+                  if (addr.addressName.isNotEmpty)
+                    Text(
+                      addr.address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontSize: 13,
+                      ),
+                    ),
                   if (addr.landmark.isNotEmpty)
-                    Text(addr.landmark,
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                            fontSize: 12)),
+                    Text(
+                      addr.landmark,
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -137,18 +159,19 @@ class _AddressTile extends StatelessWidget {
               icon: const Icon(Icons.more_vert),
               onSelected: (action) => _handleAction(context, action),
               itemBuilder: (_) => [
-                PopupMenuItem(
-                    value: _AddrAction.edit,
-                    child: Text('edit'.tr)),
+                PopupMenuItem(value: _AddrAction.edit, child: Text('edit'.tr)),
                 if (!addr.isDefault)
                   PopupMenuItem(
-                      value: _AddrAction.setDefault,
-                      child: Text('set_default'.tr)),
+                    value: _AddrAction.setDefault,
+                    child: Text('set_default'.tr),
+                  ),
                 PopupMenuItem(
-                    value: _AddrAction.delete,
-                    child: Text('delete'.tr,
-                        style:
-                            const TextStyle(color: Colors.redAccent))),
+                  value: _AddrAction.delete,
+                  child: Text(
+                    'delete'.tr,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
               ],
             ),
           ],
@@ -175,8 +198,7 @@ class _AddressTile extends StatelessWidget {
           title: 'delete'.tr,
           middleText: 'delete_address_confirm'.tr,
           confirm: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
               ctrl.deleteAddress(addr.id);
               Navigator.of(context).pop(); // Close the dialog after deletion
@@ -197,25 +219,45 @@ enum _AddrAction { edit, setDefault, delete }
 
 // ── Address form bottom sheet ─────────────────────────────────────────────────
 
-class _AddressFormSheet extends StatelessWidget {
-  _AddressFormSheet({this.existing});
+class _AddressFormSheet extends StatefulWidget {
+  const _AddressFormSheet({this.existing});
 
   final AddressModel? existing;
-  final _addrCtrl = TextEditingController();
-  final _landmarkCtrl = TextEditingController();
+
+  @override
+  State<_AddressFormSheet> createState() => _AddressFormSheetState();
+}
+
+class _AddressFormSheetState extends State<_AddressFormSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _addrCtrl;
+  late final TextEditingController _landmarkCtrl;
   final _saving = false.obs;
   final _pickedLat = Rxn<double>();
   final _pickedLng = Rxn<double>();
 
+  AddressModel? get existing => widget.existing;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: existing?.addressName ?? '');
+    _addrCtrl = TextEditingController(text: existing?.address ?? '');
+    _landmarkCtrl = TextEditingController(text: existing?.landmark ?? '');
+    _pickedLat.value = existing?.latitude;
+    _pickedLng.value = existing?.longitude;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _addrCtrl.dispose();
+    _landmarkCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (existing != null) {
-      _addrCtrl.text = existing!.address;
-      _landmarkCtrl.text = existing!.landmark;
-      _pickedLat.value = existing!.latitude;
-      _pickedLng.value = existing!.longitude;
-    }
-
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -234,83 +276,114 @@ class _AddressFormSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-          Text(
-            existing == null ? 'add_address'.tr : 'edit_address'.tr,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _addrCtrl,
-            decoration: InputDecoration(
-              labelText: 'address'.tr,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _landmarkCtrl,
-            decoration: InputDecoration(
-              labelText: 'landmark'.tr,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 14),
-          // ── Location picker ──────────────────────────────────────
-          Obx(() {
-            final hasPin = _pickedLat.value != null;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppConstants.darkBeige,
-                    side: const BorderSide(color: AppConstants.darkBeige),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+              Text(
+                existing == null ? 'add_address'.tr : 'edit_address'.tr,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _nameCtrl,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'address_name'.tr,
+                  hintText: 'address_name_hint'.tr,
+                  prefixIcon: const Icon(Icons.label_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: _openLocationPicker,
-                  icon: Icon(
-                      hasPin ? Icons.edit_location_alt_outlined : Icons.map_outlined),
-                  label: Text(hasPin ? 'change_location'.tr : 'pick_location'.tr),
                 ),
-                if (hasPin) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.location_pin,
-                          size: 14, color: AppConstants.mediumBeige),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_pickedLat.value!.toStringAsFixed(5)}, '
-                        '${_pickedLng.value!.toStringAsFixed(5)}',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppConstants.mediumBeige),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _addrCtrl,
+                decoration: InputDecoration(
+                  labelText: 'address'.tr,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _landmarkCtrl,
+                decoration: InputDecoration(
+                  labelText: 'landmark'.tr,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // ── Location picker ──────────────────────────────────────
+              Obx(() {
+                final hasPin = _pickedLat.value != null;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppConstants.darkBeige,
+                        side: const BorderSide(color: AppConstants.darkBeige),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: _openLocationPicker,
+                      icon: Icon(
+                        hasPin
+                            ? Icons.edit_location_alt_outlined
+                            : Icons.map_outlined,
+                      ),
+                      label: Text(
+                        hasPin ? 'change_location'.tr : 'pick_location'.tr,
+                      ),
+                    ),
+                    if (hasPin) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.location_pin,
+                            size: 14,
+                            color: AppConstants.mediumBeige,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_pickedLat.value!.toStringAsFixed(5)}, '
+                            '${_pickedLng.value!.toStringAsFixed(5)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppConstants.mediumBeige,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
+                  ],
+                );
+              }),
+              const SizedBox(height: 24),
+              Obx(
+                () => SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _saving.value ? null : () => _save(),
+                    child: _saving.value
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text('save'.tr),
                   ),
-                ],
-              ],
-            );
-          }),
-          const SizedBox(height: 24),
-              Obx(() => SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _saving.value ? null : () => _save(),
-                      child: _saving.value
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : Text('save'.tr),
-                    ),
-                  )),
+                ),
+              ),
             ],
           ),
         ),
@@ -333,12 +406,14 @@ class _AddressFormSheet extends StatelessWidget {
   }
 
   Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
     final addr = _addrCtrl.text.trim();
-    if (addr.isEmpty) return;
+    if (name.isEmpty || addr.isEmpty) return;
     _saving.value = true;
     try {
       if (existing == null) {
         await AddressController.to.addAddress(
+          name,
           addr,
           _landmarkCtrl.text.trim(),
           _pickedLat.value,
@@ -347,6 +422,7 @@ class _AddressFormSheet extends StatelessWidget {
       } else {
         await AddressController.to.updateAddress(
           existing!.id,
+          name,
           addr,
           _landmarkCtrl.text.trim(),
           _pickedLat.value,

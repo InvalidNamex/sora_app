@@ -425,9 +425,8 @@ class _UsersTab extends StatelessWidget {
           child: TextField(
             controller: _searchCtrl,
             onChanged: controller.onSearchChanged,
-            keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-              hintText: 'search_by_phone'.tr,
+              hintText: 'search_affiliate_users'.tr,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -445,33 +444,158 @@ class _UsersTab extends StatelessWidget {
             if (controller.searchResults.isEmpty) {
               return Center(
                 child: Text(
-                  _searchCtrl.text.isEmpty ? 'search_hint'.tr : 'no_results'.tr,
+                  _searchCtrl.text.isEmpty
+                      ? 'no_affiliates'.tr
+                      : 'no_results'.tr,
                   style: TextStyle(color: AppConstants.mediumBeige),
                 ),
               );
             }
-            return ListView.separated(
-              itemCount: controller.searchResults.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final user = controller.searchResults[i];
-                return ListTile(
-                  title: Text(user.name),
-                  subtitle: Text(user.phone),
-                  trailing: Switch(
-                    value: user.isAffiliate,
-                    activeThumbColor: AppConstants.darkBeige,
-                    onChanged: (_) => controller.toggleAffiliateStatus(
-                      user.id,
-                      user.isAffiliate,
+            return RefreshIndicator(
+              color: AppConstants.darkBeige,
+              onRefresh: () => controller.fetchUsers(query: _searchCtrl.text),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                itemCount: controller.searchResults.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  final user = controller.searchResults[i];
+                  final title = user.name.isEmpty ? user.phone : user.name;
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    if (user.phone.isNotEmpty)
+                                      Text(
+                                        user.phone,
+                                        textDirection: ui.TextDirection.ltr,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (user.code.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppConstants.darkBeige.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    user.code,
+                                    textDirection: ui.TextDirection.ltr,
+                                    style: const TextStyle(
+                                      color: AppConstants.darkBeige,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              Switch(
+                                value: user.isAffiliate,
+                                activeThumbColor: AppConstants.darkBeige,
+                                onChanged: (_) =>
+                                    controller.toggleAffiliateStatus(
+                                      user.id,
+                                      user.isAffiliate,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 18,
+                            runSpacing: 10,
+                            children: [
+                              _UserMetric(
+                                label: 'referred_orders'.tr,
+                                value: '${user.referredOrders}',
+                              ),
+                              _UserMetric(
+                                label: 'affiliate_revenue'.tr,
+                                value:
+                                    '${AppConstants.currency} ${user.referredRevenue.toStringAsFixed(0)}',
+                              ),
+                              _UserMetric(
+                                label: 'total_commission'.tr,
+                                value:
+                                    '${AppConstants.currency} ${user.totalCommission.toStringAsFixed(0)}',
+                              ),
+                              _UserMetric(
+                                label: 'available_balance'.tr,
+                                value:
+                                    '${AppConstants.currency} ${user.availableCommission.toStringAsFixed(0)}',
+                              ),
+                              _UserMetric(
+                                label: 'paid_commission'.tr,
+                                value:
+                                    '${AppConstants.currency} ${user.paidCommission.toStringAsFixed(0)}',
+                              ),
+                              if (user.code.isNotEmpty)
+                                _UserMetric(
+                                  label: 'rates'.tr,
+                                  value:
+                                      '${user.customerDiscountPercentage.toStringAsFixed(0)}% / '
+                                      '${user.commissionPercentage.toStringAsFixed(0)}%',
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             );
           }),
         ),
       ],
+    );
+  }
+}
+
+class _UserMetric extends StatelessWidget {
+  const _UserMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 132,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

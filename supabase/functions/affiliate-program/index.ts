@@ -382,6 +382,332 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === 'admin_affiliate_users') {
+      requireAdmin(user);
+      const rawQuery = String(body.query ?? '').trim().slice(0, 80);
+      const search = rawQuery.replace(/[,()%]/g, ' ').replace(/\s+/g, ' ');
+
+      let users: Record<string, unknown>[] = [];
+      if (!search) {
+        const {data, error} = await serviceClient
+          .from('users')
+          .select('id, name, phone, phoneTwo, email, isAffiliate')
+          .eq('isAffiliate', true)
+          .order('name', {ascending: true})
+          .limit(250);
+        if (error) throw error;
+        users = data ?? [];
+      } else {
+        const [userResult, codeResult] = await Promise.all([
+          serviceClient
+            .from('users')
+            .select('id, name, phone, phoneTwo, email, isAffiliate')
+            .or(
+              `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`,
+            )
+            .order('isAffiliate', {ascending: false})
+            .order('name', {ascending: true})
+            .limit(100),
+          serviceClient
+            .from('affiliate_codes')
+            .select('affiliateID')
+            .ilike('code', `%${search}%`)
+            .limit(100),
+        ]);
+        if (userResult.error) throw userResult.error;
+        if (codeResult.error) throw codeResult.error;
+        users = userResult.data ?? [];
+
+        const existingIds = new Set(users.map((row) => Number(row.id)));
+        const codeUserIds = (codeResult.data ?? [])
+          .map((row) => Number(row.affiliateID))
+          .filter((id) => Number.isInteger(id) && !existingIds.has(id));
+        if (codeUserIds.length > 0) {
+          const {data, error} = await serviceClient
+            .from('users')
+            .select('id, name, phone, phoneTwo, email, isAffiliate')
+            .in('id', codeUserIds);
+          if (error) throw error;
+          users.push(...(data ?? []));
+        }
+      }
+
+      const userIds = users.map((row) => Number(row.id));
+      if (userIds.length === 0) return json({users: []});
+
+      const [codesResult, ordersResult, commissionsResult, payoutsResult] =
+        await Promise.all([
+          serviceClient
+            .from('affiliate_codes')
+            .select(
+              'affiliateID, code, customerDiscountPercentage, affiliateCommissionPercentage',
+            )
+            .in('affiliateID', userIds),
+          serviceClient
+            .from('order_master')
+            .select('affiliateID, totalPrice, orderStatus')
+            .in('affiliateID', userIds),
+          serviceClient
+            .from('affiliate_commissions')
+            .select('affiliateID, amount, status')
+            .in('affiliateID', userIds),
+          serviceClient
+            .from('payout_requests')
+            .select('affiliateID, amount, status')
+            .in('affiliateID', userIds),
+        ]);
+
+      const firstError = [
+        codesResult.error,
+        ordersResult.error,
+        commissionsResult.error,
+        payoutsResult.error,
+      ].find(Boolean);
+      if (firstError) throw firstError;
+
+      const codes = new Map(
+        (codesResult.data ?? []).map((row) => [Number(row.affiliateID), row]),
+      );
+      const summaries = users.map((row) => {
+        const id = Number(row.id);
+        const orders = (ordersResult.data ?? []).filter(
+          (order) => Number(order.affiliateID) === id,
+        );
+        const validOrders = orders.filter(
+          (order) =>
+            order.orderStatus !== 'Cancelled' &&
+            order.orderStatus !== 'Returned',
+        );
+        const commissions = (commissionsResult.data ?? []).filter(
+          (commission) => Number(commission.affiliateID) === id,
+        );
+        const amountFor = (statuses: string[]) =>
+          commissions
+            .filter((commission) => statuses.includes(commission.status))
+            .reduce(
+              (sum, commission) => sum + (Number(commission.amount) || 0),
+              0,
+            );
+        const code = codes.get(id);
+        const paidPayouts = (payoutsResult.data ?? [])
+          .filter(
+            (payout) =>
+              Number(payout.affiliateID) === id && payout.status === 'Paid',
+          )
+          .reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0);
+
+        return {
+          ...row,
+          code: code?.code ?? '',
+          customerDiscountPercentage:
+            Number(code?.customerDiscountPercentage) || 0,
+          commissionPercentage:
+            Number(code?.affiliateCommissionPercentage) || 0,
+          referredOrders: validOrders.length,
+          referredRevenue: validOrders.reduce(
+            (sum, order) => sum + (Number(order.totalPrice) || 0),
+            0,
+          ),
+          totalCommission: amountFor([
+            'pending',
+            'available',
+            'processing',
+            'paid',
+          ]),
+          availableCommission: amountFor(['available']),
+          pendingCommission: amountFor(['pending', 'processing']),
+          paidCommission: amountFor(['paid']),
+          paidPayouts,
+        };
+      });
+
+      summaries.sort((a, b) => {
+        if (a.isAffiliate !== b.isAffiliate) return a.isAffiliate ? -1 : 1;
+        return b.referredRevenue - a.referredRevenue;
+      });
+      return json({users: summaries});
+    }
+
+    if (action === 'admin_reports') {
+      requireAdmin(user);
+      const [ordersResult, commissionsResult, payoutsResult, codesResult] =
+        await Promise.all([
+          serviceClient
+            .from('order_master')
+            .select(
+              'id, affiliateID, affiliateCode, affiliateSource, totalPrice, totalDiscount, appliedPromoCode, promoType, orderStatus, created_at',
+            )
+            .order('created_at', {ascending: false}),
+          serviceClient
+            .from('affiliate_commissions')
+            .select('affiliateID, amount, status'),
+          serviceClient
+            .from('payout_requests')
+            .select(
+              '*, users!payout_requests_affiliateID_fkey(name, phone)',
+            )
+            .order('created_at', {ascending: false}),
+          serviceClient
+            .from('affiliate_codes')
+            .select('affiliateID, code'),
+        ]);
+
+      const firstError = [
+        ordersResult.error,
+        commissionsResult.error,
+        payoutsResult.error,
+        codesResult.error,
+      ].find(Boolean);
+      if (firstError) throw firstError;
+
+      const orders = ordersResult.data ?? [];
+      const commissions = commissionsResult.data ?? [];
+      const payouts = payoutsResult.data ?? [];
+      const validOrders = orders.filter(
+        (order) =>
+          order.orderStatus !== 'Cancelled' &&
+          order.orderStatus !== 'Returned',
+      );
+      const affiliateOrders = validOrders.filter(
+        (order) => order.affiliateID != null,
+      );
+      const promoOrders = validOrders.filter(
+        (order) =>
+          typeof order.appliedPromoCode === 'string' &&
+          order.appliedPromoCode.length > 0,
+      );
+      const sum = (
+        rows: Record<string, unknown>[],
+        field: string,
+      ) => rows.reduce((total, row) => total + (Number(row[field]) || 0), 0);
+      const commissionByStatus = (status: string) =>
+        commissions
+          .filter((row) => row.status === status)
+          .reduce((total, row) => total + (Number(row.amount) || 0), 0);
+
+      const ordersByStatus: Record<string, number> = {};
+      for (const order of orders) {
+        const status = String(order.orderStatus ?? 'Pending');
+        ordersByStatus[status] = (ordersByStatus[status] ?? 0) + 1;
+      }
+
+      const now = new Date();
+      const dayRows: {
+        date: string;
+        orders: number;
+        revenue: number;
+      }[] = [];
+      for (let offset = 13; offset >= 0; offset -= 1) {
+        const day = new Date(now);
+        day.setUTCHours(0, 0, 0, 0);
+        day.setUTCDate(day.getUTCDate() - offset);
+        const date = day.toISOString().slice(0, 10);
+        const rows = validOrders.filter(
+          (order) => String(order.created_at).slice(0, 10) === date,
+        );
+        dayRows.push({
+          date,
+          orders: rows.length,
+          revenue: sum(rows, 'totalPrice'),
+        });
+      }
+
+      const codeByAffiliate = new Map(
+        (codesResult.data ?? []).map((row) => [
+          Number(row.affiliateID),
+          String(row.code ?? ''),
+        ]),
+      );
+      const affiliateIds = [
+        ...new Set(
+          affiliateOrders
+            .map((order) => Number(order.affiliateID))
+            .filter(Number.isInteger),
+        ),
+      ];
+      let affiliateNames = new Map<number, string>();
+      if (affiliateIds.length > 0) {
+        const {data, error} = await serviceClient
+          .from('users')
+          .select('id, name')
+          .in('id', affiliateIds);
+        if (error) throw error;
+        affiliateNames = new Map(
+          (data ?? []).map((row) => [Number(row.id), String(row.name ?? '')]),
+        );
+      }
+
+      const topAffiliates = affiliateIds
+        .map((affiliateId) => {
+          const rows = affiliateOrders.filter(
+            (order) => Number(order.affiliateID) === affiliateId,
+          );
+          const affiliateCommissions = commissions.filter(
+            (row) =>
+              Number(row.affiliateID) === affiliateId && row.status !== 'void',
+          );
+          return {
+            id: affiliateId,
+            name: affiliateNames.get(affiliateId) ?? '',
+            code: codeByAffiliate.get(affiliateId) ?? '',
+            orders: rows.length,
+            revenue: sum(rows, 'totalPrice'),
+            commission: sum(affiliateCommissions, 'amount'),
+          };
+        })
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
+      return json({
+        summary: {
+          total_orders: orders.length,
+          completed_orders: validOrders.length,
+          net_revenue: sum(validOrders, 'totalPrice'),
+          gross_sales:
+            sum(validOrders, 'totalPrice') +
+            sum(validOrders, 'totalDiscount'),
+          total_discounts: sum(validOrders, 'totalDiscount'),
+          average_order_value: validOrders.length === 0
+            ? 0
+            : sum(validOrders, 'totalPrice') / validOrders.length,
+          affiliate_orders: affiliateOrders.length,
+          affiliate_revenue: sum(affiliateOrders, 'totalPrice'),
+          promo_orders: promoOrders.length,
+          promo_discounts: sum(promoOrders, 'totalDiscount'),
+          commission_total: commissions
+            .filter((row) => row.status !== 'void')
+            .reduce(
+              (total, row) => total + (Number(row.amount) || 0),
+              0,
+            ),
+          commission_pending: commissionByStatus('pending'),
+          commission_available: commissionByStatus('available'),
+          commission_processing: commissionByStatus('processing'),
+          commission_paid: commissionByStatus('paid'),
+          paid_payouts: payouts
+            .filter((row) => row.status === 'Paid')
+            .reduce(
+              (total, row) => total + (Number(row.amount) || 0),
+              0,
+            ),
+          pending_payouts:
+            payouts.filter((row) => row.status === 'Pending').length,
+        },
+        orders_by_status: ordersByStatus,
+        orders_by_day: dayRows,
+        affiliate_sources: {
+          link: affiliateOrders.filter(
+            (order) => order.affiliateSource === 'link',
+          ).length,
+          manual: affiliateOrders.filter(
+            (order) => order.affiliateSource !== 'link',
+          ).length,
+        },
+        top_affiliates: topAffiliates,
+        recent_payouts: payouts.slice(0, 10),
+      });
+    }
+
     if (action === 'review_affiliate_application') {
       requireAdmin(user);
       const {data, error} = await serviceClient.rpc(

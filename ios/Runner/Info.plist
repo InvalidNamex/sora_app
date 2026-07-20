@@ -34,6 +34,11 @@
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
 		<string>Sora</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>en</string>
+			<string>ar</string>
+		</array>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -51,6 +56,8 @@
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
+		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
@@ -79,7 +86,6 @@
 		<true/>
 		<key>UIBackgroundModes</key>
 		<array>
-			<string>fetch</string>
 			<string>remote-notification</string>
 		</array>
 		<key>UILaunchStoryboardName</key>
@@ -99,6 +105,8 @@
 			<string>UIInterfaceOrientationPortrait</string>
 		</array>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Sora needs access to your photo library to pick category images.</string>
+		<string>Sora lets authorized administrators select photos for product, category, notification, and bundle images.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Sora uses your location to center the delivery map near you.</string>
 	</dict>
 </plist>
