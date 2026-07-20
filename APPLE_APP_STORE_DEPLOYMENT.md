@@ -23,7 +23,7 @@ owner.
 
 ### Ready in the repository
 
-- App Store listing name: `Sora Hub`
+- App Store listing name: `Sora Store`
 - In-app brand/display name: `Sora`
 - Bundle ID: `com.softforge.sora`
 - Apple team ID: `WRHTJ9468B`
@@ -406,7 +406,7 @@ that the developer is responsible for the export determination. See
 Create the app at [App Store Connect](https://appstoreconnect.apple.com/):
 
 - Platforms: iOS
-- Name: `Sora Hub`
+- Name: `Sora Store`
 - Primary language: owner decision; English is operationally simplest
 - Bundle ID: `com.softforge.sora`
 - SKU: for example `sora-ios-001` (cannot be changed later)
@@ -433,7 +433,7 @@ Confirm all claims with the business owner.
 **Name**
 
 ```text
-Sora Hub
+Sora Store
 ```
 
 **Subtitle** (30 characters maximum)
@@ -445,13 +445,13 @@ Perfumes & curated bundles
 **Promotional text**
 
 ```text
-Discover fragrances, exclusive bundle deals, and convenient cash-on-delivery ordering from Sora Hub.
+Discover fragrances, exclusive bundle deals, and convenient cash-on-delivery ordering from Sora Store.
 ```
 
 **Description**
 
 ```text
-Discover fragrances for every style with Sora Hub.
+Discover fragrances for every style with Sora Store.
 
 Browse curated perfume collections, explore sizes and product details, save favorites, and find exclusive bundle deals. Build your cart as a guest, sign in securely, save delivery addresses, and place cash-on-delivery orders.
 
