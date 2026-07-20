@@ -1,5 +1,17 @@
 # Sora — Apple App Store deployment guide
 
+## Current release status — July 20, 2026
+
+Build `1.0.0 (10)` has passed the Flutter analyzer, all 21 automated tests,
+the iOS archive validation, and production web checks. Sign in with Apple is
+configured and working on iOS; the button remains hidden on Android and web.
+The privacy policy is live at `https://www.sora-eg.store/privacy_policy`.
+
+This machine has **0 valid Apple code-signing identities**, so the archive is
+currently unsigned. The final upload must be archived and distributed from a
+Mac/Xcode account with an Apple Distribution certificate and a provisioning
+profile for `com.softforge.sora`.
+
 Last audited: **20 July 2026**
 
 This guide is specific to the current Sora repository. It separates what is
