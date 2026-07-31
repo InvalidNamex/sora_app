@@ -18,7 +18,9 @@ abstract class Routes {
   static const adminCatalog = '/admin-catalog';
   static const adminBundles = '/admin-bundles';
   static const adminReports = '/admin-reports';
+  static const adminVideoAds = '/admin-video-ads';
   static const adminNotifications = '/admin-notifications';
+  static const adminItemSuggestions = '/admin-item-suggestions';
   static const affiliateDashboard = '/affiliate';
   static const locationPicker = '/location-picker';
   static const bundleDetail = '/bundle/:id';

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
@@ -12,11 +14,27 @@ class WishlistController extends GetxController {
 
   final likedItems = <LikedItemModel>[].obs;
   final isLoading = true.obs;
+  final isSaving = false.obs;
+  Worker? _userWorker;
 
   @override
-  void onReady() {
-    super.onReady();
-    fetchLikedItems();
+  void onInit() {
+    super.onInit();
+    _userWorker = ever(AuthController.to.currentUser, (user) {
+      if (user == null) {
+        likedItems.clear();
+        isLoading.value = false;
+      } else {
+        unawaited(fetchLikedItems());
+      }
+    });
+    unawaited(fetchLikedItems());
+  }
+
+  @override
+  void onClose() {
+    _userWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> fetchLikedItems() async {
@@ -30,7 +48,8 @@ class WishlistController extends GetxController {
       final response = await SupabaseService.client
           .from('liked_items')
           .select(
-          'id, itemID, items(id, itemName, itemNameEN, item_properties(id, image, price, inStock, isDefault, size))')
+            'id, itemID, items(id, itemName, itemNameEN, item_properties(id, image, price, inStock, isDefault, size))',
+          )
           .eq('userID', userId);
       likedItems.value = (response as List)
           .map((e) => LikedItemModel.fromJson(e as Map<String, dynamic>))
@@ -43,10 +62,11 @@ class WishlistController extends GetxController {
     }
   }
 
-  bool isLiked(int itemId) =>
-      likedItems.any((l) => l.itemId == itemId);
+  bool isLiked(int itemId) => likedItems.any((l) => l.itemId == itemId);
 
   Future<void> toggleLike(int itemId) async {
+    if (isSaving.value) return;
+
     final userId = AuthController.to.currentUser.value?.id;
     if (userId == null) {
       Get.toNamed(Routes.auth);
@@ -58,20 +78,28 @@ class WishlistController extends GetxController {
       return;
     }
 
-    final existing =
-        likedItems.firstWhereOrNull((l) => l.itemId == itemId);
-    if (existing != null) {
-      await SupabaseService.client
-          .from('liked_items')
-          .delete()
-          .eq('id', existing.id);
-      likedItems.removeWhere((l) => l.itemId == itemId);
-    } else {
-      await SupabaseService.client.from('liked_items').insert({
-        'userID': userId,
-        'itemID': itemId,
-      });
+    isSaving.value = true;
+    try {
+      final existing = likedItems.firstWhereOrNull((l) => l.itemId == itemId);
+      if (existing != null) {
+        await SupabaseService.client
+            .from('liked_items')
+            .delete()
+            .eq('id', existing.id);
+        likedItems.removeWhere((l) => l.itemId == itemId);
+      } else {
+        await SupabaseService.client.from('liked_items').insert({
+          'userID': userId,
+          'itemID': itemId,
+        });
+        await fetchLikedItems();
+      }
+    } catch (e) {
+      debugPrint('[WishlistController] toggleLike error: $e');
+      AppSnackbar.show('error'.tr, e.toString(), type: AppSnackbarType.error);
       await fetchLikedItems();
+    } finally {
+      isSaving.value = false;
     }
   }
 }

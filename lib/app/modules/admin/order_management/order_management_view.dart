@@ -17,8 +17,9 @@ class OrderManagementView extends GetView<OrderManagementController> {
         title: Text('order_management'.tr),
         actions: [
           IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: controller.fetchOrders),
+            icon: const Icon(Icons.refresh),
+            onPressed: controller.fetchOrders,
+          ),
         ],
       ),
       body: Column(
@@ -28,8 +29,10 @@ class OrderManagementView extends GetView<OrderManagementController> {
             child: Obx(() {
               if (controller.isLoading.value) {
                 return const Center(
-                    child: CircularProgressIndicator(
-                        color: AppConstants.darkBeige));
+                  child: CircularProgressIndicator(
+                    color: AppConstants.darkBeige,
+                  ),
+                );
               }
               if (controller.filteredOrders.isEmpty) {
                 return Center(child: Text('no_orders'.tr));
@@ -41,10 +44,12 @@ class OrderManagementView extends GetView<OrderManagementController> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: controller.filteredOrders.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
                     itemBuilder: (context, i) => _OrderRow(
-                        order: controller.filteredOrders[i],
-                        controller: controller),
+                      order: controller.filteredOrders[i],
+                      controller: controller,
+                    ),
                   ),
                 ),
               );
@@ -66,28 +71,31 @@ class _FilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 50,
-      child: Obx(() => ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            children: OrderManagementController.statuses
-                .map((s) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(s == 'all' ? 'all'.tr : s),
-                        selected: controller.selectedFilter.value == s,
-                        onSelected: (_) =>
-                            controller.selectedFilter.value = s,
-                        selectedColor: AppConstants.darkBeige,
-                        labelStyle: TextStyle(
-                          color: controller.selectedFilter.value == s
-                              ? Colors.white
-                              : null,
-                        ),
-                        showCheckmark: false,
-                      ),
-                    ))
-                .toList(),
-          )),
+      child: Obx(
+        () => ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          children: OrderManagementController.statuses
+              .map(
+                (s) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(s == 'all' ? 'all'.tr : s),
+                    selected: controller.selectedFilter.value == s,
+                    onSelected: (_) => controller.selectedFilter.value = s,
+                    selectedColor: AppConstants.darkBeige,
+                    labelStyle: TextStyle(
+                      color: controller.selectedFilter.value == s
+                          ? Colors.white
+                          : null,
+                    ),
+                    showCheckmark: false,
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 }
@@ -109,8 +117,12 @@ class _OrderRow extends StatelessWidget {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: ExpansionTile(
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          onExpansionChanged: (expanded) {
+            if (expanded) {
+              controller.fetchOrderDetails(order.id);
+            }
+          },
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: Container(
             width: 42,
             height: 42,
@@ -123,7 +135,8 @@ class _OrderRow extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.receipt_long),
             ),
           ),
@@ -143,18 +156,45 @@ class _OrderRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (order.address.isNotEmpty) ...[
-                    const Text('Delivery Address:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const Text(
+                      'Delivery Address:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
                     Text(order.address, style: const TextStyle(fontSize: 13)),
                     const SizedBox(height: 8),
                   ],
                   if (order.checkoutPhone.isNotEmpty) ...[
-                    const Text('Contact Phone:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text(order.checkoutPhone, style: const TextStyle(fontSize: 13)),
+                    const Text(
+                      'Contact Phone:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      order.checkoutPhone,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     const SizedBox(height: 8),
                   ],
                   if (order.notes != null && order.notes!.isNotEmpty) ...[
-                    const Text('Order Notes:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text(order.notes!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
+                    const Text(
+                      'Order Notes:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      order.notes!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ],
                   if (order.affiliateCode?.isNotEmpty == true) ...[
@@ -174,61 +214,112 @@ class _OrderRow extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Gross Total:', style: TextStyle(fontSize: 13)),
-                      Text('${AppConstants.currency} ${order.grossTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                      const Text(
+                        'Gross Total:',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '${AppConstants.currency} ${order.grossTotal.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ],
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Discount:', style: TextStyle(fontSize: 13)),
-                      Text('- ${AppConstants.currency} ${order.totalDiscount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, color: Colors.red)),
+                      Text(
+                        '- ${AppConstants.currency} ${order.totalDiscount.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13, color: Colors.red),
+                      ),
                     ],
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Net Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      Text('${AppConstants.currency} ${order.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppConstants.darkBeige)),
+                      const Text(
+                        'Net Total:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${AppConstants.currency} ${order.totalPrice.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppConstants.darkBeige,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(),
-                  const Text('Order Items:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const Text(
+                    'Order Items:',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
                 ],
               ),
             ),
-            FutureBuilder(
-              future: controller.fetchOrderDetails(order.id),
-              builder: (context, snapshot) => Obx(() {
-                final details = controller.details
-                    .where((d) => d.orderMasterId == order.id)
-                    .toList();
-                if (details.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Center(
-                        child: SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2))),
-                  );
-                }
-                return Column(
-                  children: details
-                      .map((d) => ListTile(
-                            dense: true,
-                            title: Text(d.itemName),
-                            trailing: Text(
-                              '${d.quantity} × ${AppConstants.currency} ${d.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  color: AppConstants.darkBeige),
-                            ),
-                          ))
-                      .toList(),
+            Obx(() {
+              final isLoading = controller.isLoadingDetails(order.id);
+              final hasError = controller.hasDetailsError(order.id);
+              final details = controller.detailsFor(order.id);
+
+              if (isLoading) {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
                 );
-              }),
-            ),
+              }
+
+              if (hasError) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text('order_details_load_failed'.tr)),
+                      TextButton(
+                        onPressed: () =>
+                            controller.fetchOrderDetails(order.id, force: true),
+                        child: Text('retry'.tr),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              if (controller.orderDetails.containsKey(order.id) &&
+                  details.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Center(child: Text('no_order_items'.tr)),
+                );
+              }
+
+              return Column(
+                children: details
+                    .map(
+                      (d) => ListTile(
+                        dense: true,
+                        title: Text(d.itemName),
+                        trailing: Text(
+                          '${d.quantity} × ${AppConstants.currency} '
+                          '${d.price.toStringAsFixed(2)}',
+                          style: const TextStyle(color: AppConstants.darkBeige),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            }),
           ],
         ),
       );
@@ -252,20 +343,21 @@ class _StatusDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => DropdownButton<String>(
-          value: order.orderStatus,
-          underline: const SizedBox.shrink(),
-          items: _statuses
-              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-              .toList(),
-          onChanged: controller.updatingOrderId.value != null
-              ? null
-              : (newStatus) {
-                  if (newStatus != null &&
-                      newStatus != order.orderStatus) {
-                    controller.updateStatus(order, newStatus);
-                  }
-                },
-        ));
+    return Obx(
+      () => DropdownButton<String>(
+        value: order.orderStatus,
+        underline: const SizedBox.shrink(),
+        items: _statuses
+            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+            .toList(),
+        onChanged: controller.updatingOrderId.value != null
+            ? null
+            : (newStatus) {
+                if (newStatus != null && newStatus != order.orderStatus) {
+                  controller.updateStatus(order, newStatus);
+                }
+              },
+      ),
+    );
   }
 }

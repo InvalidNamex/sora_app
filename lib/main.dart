@@ -25,7 +25,23 @@ Future<void> main() async {
     options.dsn =
         'https://08d59abc0502c735d5261aeb13abce6b@o4510415561687040.ingest.de.sentry.io/4511768490541136';
     options.sendDefaultPii = false;
-  }, appRunner: _bootstrap);
+    options.environment = kReleaseMode
+        ? 'production'
+        : kProfileMode
+        ? 'staging'
+        : 'development';
+    options.attachStacktrace = true;
+    options.enableAutoSessionTracking = true;
+  }, appRunner: _runBootstrap);
+}
+
+Future<void> _runBootstrap() async {
+  try {
+    await _bootstrap();
+  } catch (error, stackTrace) {
+    await Sentry.captureException(error, stackTrace: stackTrace);
+    rethrow;
+  }
 }
 
 Future<void> _bootstrap() async {
@@ -39,7 +55,7 @@ Future<void> _bootstrap() async {
   }
   await SupabaseService.init();
 
-  final settings = Get.put(SettingsController(), permanent: true);
+  final settings = Get.put(await SettingsController.load(), permanent: true);
   AppBinding.init(); // registers AuthController, CartController, NavController, lazy tab controllers
 
   runApp(SentryWidget(child: SoraApp(settings: settings)));

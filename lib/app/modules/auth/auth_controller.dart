@@ -267,6 +267,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
     try {
       FocusManager.instance.primaryFocus?.unfocus();
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
       _phoneOtpRequestActive = true;
       isLoading.value = true;
       _pendingPhone = phoneNumber;
@@ -281,7 +284,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         _webPhoneConfirmationResult = confirmationResult;
         verificationId.value = confirmationResult.verificationId;
         _phoneOtpRequestActive = false;
-        otpStatusMessage.value = 'Code sent. Please enter the 6-digit code.';
+        otpStatusMessage.value = 'otp_code_sent'.tr;
         resetOtpState();
         _startResendCountdown();
         onCodeSent?.call();
@@ -321,7 +324,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           verificationId.value = id;
           _resendToken = token;
           otpTimedOut.value = false;
-          otpStatusMessage.value = 'Code sent. Please enter the 6-digit code.';
+          otpStatusMessage.value = 'otp_code_sent'.tr;
           resetOtpState();
           _startResendCountdown();
           onCodeSent?.call();
@@ -329,10 +332,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         codeAutoRetrievalTimeout: (_) {
           _phoneOtpRequestActive = false;
           otpTimedOut.value = true;
-          otpStatusMessage.value =
-              'Auto-detection timed out. Please enter the code manually or resend.';
+          otpStatusMessage.value = 'otp_auto_detection_timeout'.tr;
           AppSnackbar.show(
-            'Verification'.tr,
+            'verification'.tr,
             otpStatusMessage.value,
             type: AppSnackbarType.warning,
             duration: const Duration(seconds: 5),
@@ -352,7 +354,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       _phoneOtpRequestActive = false;
       debugPrint('[AuthController] Phone OTP send error: $e');
-      otpStatusMessage.value = 'Verification failed. Please try again.';
+      otpStatusMessage.value = 'verification_failed'.tr;
       AppSnackbar.show(
         'error'.tr,
         otpStatusMessage.value,
@@ -376,29 +378,29 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     final msg = e.message ?? '';
     switch (e.code) {
       case 'billing-not-enabled':
-        return 'SMS service is currently unavailable. Please contact support.';
+        return 'otp_sms_unavailable'.tr;
       case 'too-many-requests':
-        return 'Too many attempts. Your device is temporarily blocked. Try again in a few hours.';
+        return 'otp_too_many_attempts'.tr;
       case 'invalid-phone-number':
-        return 'The phone number is invalid. Please check and try again.';
+        return 'otp_invalid_phone'.tr;
       case 'quota-exceeded':
-        return 'SMS quota exceeded. Please try again later.';
+        return 'otp_quota_exceeded'.tr;
       case 'captcha-check-failed':
-        return 'Security verification failed. Please try again.';
+        return 'otp_security_failed'.tr;
       case 'app-not-authorized':
-        return 'This app is not authorized for phone sign-in.';
+        return 'otp_app_not_authorized'.tr;
       case 'internal-error':
-        return 'SMS verification is unavailable. Please check Firebase billing and SMS region settings.';
+        return 'otp_sms_unavailable'.tr;
       case 'missing-phone-number':
-        return 'Please enter a valid phone number.';
+        return 'otp_invalid_phone'.tr;
       default:
         if (msg.contains('BILLING_NOT_ENABLED')) {
-          return 'SMS service is currently unavailable. Please contact support.';
+          return 'otp_sms_unavailable'.tr;
         }
         if (msg.contains('blocked') || msg.contains('TOO_MANY')) {
-          return 'Too many attempts. Please try again in a few hours.';
+          return 'otp_too_many_attempts'.tr;
         }
-        return msg.isNotEmpty ? msg : 'Verification failed. Please try again.';
+        return 'verification_failed'.tr;
     }
   }
 
@@ -441,7 +443,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       resetOtpState();
       AppSnackbar.show(
         'error'.tr,
-        'Verification failed. Please try again.',
+        'verification_failed'.tr,
         type: AppSnackbarType.error,
       );
     } finally {
@@ -481,12 +483,12 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   String _otpErrorMessage(fb.FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-verification-code':
-        return 'The code you entered is incorrect. Please try again.';
+        return 'otp_invalid_code'.tr;
       case 'invalid-verification-id':
       case 'session-expired':
-        return 'The session has expired. Please request a new code.';
+        return 'otp_session_expired'.tr;
       default:
-        return e.message ?? 'Verification failed. Please try again.';
+        return 'verification_failed'.tr;
     }
   }
 
@@ -871,7 +873,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         await _nativeGoogleSignIn.signOut();
       }
       await _auth.signOut();
-      await SupabaseService.client.auth.signOut();
       currentUser.value = null;
       AffiliateProgramService.clearSessionCache();
 
@@ -927,7 +928,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
     try {
       await _auth.signOut();
-      await SupabaseService.client.auth.signOut();
     } finally {
       await _storage.remove(AppConstants.kGuestCart);
       await _storage.remove(AppConstants.kGuestBundleCart);

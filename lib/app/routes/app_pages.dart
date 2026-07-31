@@ -16,10 +16,14 @@ import '../modules/admin/bundle_management/bundle_management_binding.dart';
 import '../modules/admin/bundle_management/bundle_management_view.dart';
 import '../modules/admin/notifications/notifications_binding.dart';
 import '../modules/admin/notifications/notifications_view.dart';
+import '../modules/admin/item_suggestions/item_suggestions_binding.dart';
+import '../modules/admin/item_suggestions/item_suggestions_view.dart';
 import '../modules/admin/order_management/order_management_binding.dart';
 import '../modules/admin/order_management/order_management_view.dart';
 import '../modules/admin/reports/reports_binding.dart';
 import '../modules/admin/reports/reports_view.dart';
+import '../modules/admin/video_ad_management/video_ad_management_binding.dart';
+import '../modules/admin/video_ad_management/video_ad_management_view.dart';
 import '../modules/affiliate/affiliate_binding.dart';
 import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
@@ -123,9 +127,21 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminVideoAds,
+      page: () => const VideoAdManagementView(),
+      binding: VideoAdManagementBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.adminNotifications,
       page: () => const NotificationsView(),
       binding: NotificationsBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminItemSuggestions,
+      page: () => const ItemSuggestionsView(),
+      binding: ItemSuggestionsBinding(),
       middlewares: [AdminGuard()],
     ),
     GetPage(

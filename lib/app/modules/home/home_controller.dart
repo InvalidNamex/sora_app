@@ -12,11 +12,13 @@ import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
 import '../../core/models/promotion_model.dart';
 import '../../core/models/sub_category_model.dart';
+import '../../core/models/video_ad_model.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/bundle_deal_service.dart';
+import '../../core/services/video_ad_service.dart';
 import '../../core/utils/app_snackbar.dart';
 
-/// View-local model combining an item with its first (primary) property.
+/// View-local model combining an item with the property shown in the home feed.
 class ItemWithProperty {
   final ItemModel item;
   final ItemPropertyModel? primaryProperty;
@@ -40,9 +42,11 @@ class HomeController extends GetxController {
   final items = <ItemWithProperty>[].obs;
   final displayItems = <ItemWithProperty>[].obs;
   final activePromotions = <PromotionModel>[].obs;
+  final videoAds = <VideoAdModel>[].obs;
 
   final isLoadingBanners = true.obs;
   final isLoadingBundles = true.obs;
+  final isLoadingVideoAds = true.obs;
   final isLoadingCategories = true.obs;
   final isLoadingItems = true.obs;
   final hasItemsError = false.obs;
@@ -84,9 +88,16 @@ class HomeController extends GetxController {
               ),
             )
             .toList();
-        final primary = (props != null && props.isNotEmpty)
-            ? props.firstWhereOrNull((p) => p.isDefault) ?? props.first
-            : null;
+        final primary = props?.fold<ItemPropertyModel?>(
+          null,
+          (largest, property) =>
+              largest == null ||
+                  property.sizeMl > largest.sizeMl ||
+                  (property.sizeMl == largest.sizeMl &&
+                      property.id < largest.id)
+              ? property
+              : largest,
+        );
         parsed.add(ItemWithProperty(item: item, primaryProperty: primary));
       } catch (e) {
         debugPrint('[HomeController] item parse error: $e');
@@ -152,6 +163,16 @@ class HomeController extends GetxController {
         isLoadingBundles.value = false;
       }
 
+      try {
+        videoAds.value = await VideoAdService.fetchAds();
+      } catch (e, stackTrace) {
+        debugPrint('[HomeController] fetchVideoAds error: $e');
+        debugPrint('$stackTrace');
+        videoAds.clear();
+      } finally {
+        isLoadingVideoAds.value = false;
+      }
+
       // Fetch categories
       List categoryRes;
       try {
@@ -166,7 +187,9 @@ class HomeController extends GetxController {
       final itemRes = await SupabaseService.client
           .from('items')
           .select(
-            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)',
+            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+            'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
+            'accordsEN, isFeatured, item_properties(*)',
           )
           .order('isFeatured', ascending: false)
           .order('id', ascending: false)
@@ -230,6 +253,7 @@ class HomeController extends GetxController {
       // Reset loading states
       isLoadingBanners.value = false;
       isLoadingBundles.value = false;
+      isLoadingVideoAds.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
       hasItemsError.value = false;
@@ -264,6 +288,7 @@ class HomeController extends GetxController {
       }
       isLoadingBanners.value = false;
       isLoadingBundles.value = false;
+      isLoadingVideoAds.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
     } finally {
@@ -344,7 +369,9 @@ class HomeController extends GetxController {
       var query = SupabaseService.client
           .from('items')
           .select(
-            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, itemDescription, itemDescriptionEN, isFeatured, item_properties(*)',
+            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+            'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
+            'accordsEN, isFeatured, item_properties(*)',
           );
 
       if (selectedSubCategoryId.value != null) {

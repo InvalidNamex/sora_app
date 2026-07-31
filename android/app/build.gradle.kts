@@ -16,6 +16,20 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+if (releaseBuildRequested && !keystorePropertiesFile.exists()) {
+    throw GradleException(
+        "Release signing is not configured. Create android/key.properties " +
+            "and keep the upload keystore outside version control.",
+    )
+}
+
+fun signingProperty(name: String): String =
+    keystoreProperties.getProperty(name)
+        ?: throw GradleException("Missing '$name' in android/key.properties")
+
 android {
     namespace = "com.softforge.sora"
     compileSdk = flutter.compileSdkVersion
@@ -32,10 +46,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.softforge.sora"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -45,22 +56,19 @@ android {
     signingConfigs {
         if (keystorePropertiesFile.exists()) {
             create("release") {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = signingProperty("keyAlias")
+                keyPassword = signingProperty("keyPassword")
+                storeFile = rootProject.file(signingProperty("storeFile"))
+                storePassword = signingProperty("storePassword")
             }
         }
     }
 
     buildTypes {
         release {
-            // Uses local key.properties if available, otherwise falls back to
-            // debug signing so local release runs still work.
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            // Never publish a release signed with the shared Android debug key.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

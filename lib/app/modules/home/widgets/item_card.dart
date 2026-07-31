@@ -268,6 +268,19 @@ class _CardBody extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (entry.item.brandName.isNotEmpty) ...[
+                  Text(
+                    entry.item.brandName,
+                    style: const TextStyle(
+                      color: AppConstants.mediumBeige,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                ],
                 Text(
                   entry.item.itemName,
                   style: TextStyle(

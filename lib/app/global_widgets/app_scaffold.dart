@@ -212,8 +212,8 @@ class _MobileBottomNav extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
         decoration: BoxDecoration(
           color: isDark ? Colors.grey.shade900 : Colors.white,
           borderRadius: BorderRadius.circular(32),

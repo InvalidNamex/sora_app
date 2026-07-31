@@ -27,7 +27,6 @@ class AppConstants {
   static const String placeholderPath = 'assets/images/place_holder.png';
 
   // ── Company details ───────────────────────────────────────────────
-  // TODO: Replace placeholders with the real support contacts.
   static const String supportEmail = 'support@sora-eg.store';
   static const String supportPhone = '+201111058359';
   static const String baseDomain = 'https://www.sora-eg.store/';

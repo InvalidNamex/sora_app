@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/banner_model.dart';
+import '../../core/models/video_ad_model.dart';
 import '../../core/utils/responsive.dart';
 import '../../modules/cart/cart_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
@@ -13,6 +14,7 @@ import 'widgets/banner_carousel.dart';
 import 'widgets/bundle_deal_carousel.dart';
 import 'widgets/category_strip.dart';
 import 'widgets/item_grid.dart';
+import 'widgets/video_ad_section.dart';
 
 class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
   _HomeSearchDelegate(this.controller);
@@ -27,8 +29,10 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
 
     return controller.displayItems.where((entry) {
       final itemName = entry.item.itemName.toLowerCase();
+      final brandName = entry.item.brandName.toLowerCase();
       final itemDescription = entry.item.itemDescription.toLowerCase();
       return itemName.contains(normalizedQuery) ||
+          brandName.contains(normalizedQuery) ||
           itemDescription.contains(normalizedQuery);
     }).toList();
   }
@@ -80,11 +84,13 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          subtitle: prop != null
-              ? Text(
-                  '${AppConstants.currency} ${prop.price.toStringAsFixed(2)}',
-                )
-              : null,
+          subtitle: Text(
+            [
+              if (entry.item.brandName.isNotEmpty) entry.item.brandName,
+              if (prop != null)
+                '${AppConstants.currency} ${prop.price.toStringAsFixed(2)}',
+            ].join(' • '),
+          ),
           trailing: entry.item.isFeatured
               ? const Icon(
                   Icons.star_rounded,
@@ -215,23 +221,25 @@ class HomeView extends GetView<HomeController> {
               automaticallyImplyLeading: false,
             ),
 
-          // ── Collapsing hero: banner + featured strip ─────────────────────
+          // ── Collapsing hero: banner + video ad ───────────────────────────
           Obx(() {
-            final featured = controller.displayItems
-                .where((e) => e.item.isFeatured)
-                .take(10)
-                .toList();
-            final hasFeatured = featured.isNotEmpty;
+            final ads = controller.videoAds;
+            final selectedAd = Responsive.isMobileOrTablet(context)
+                ? ads.firstWhereOrNull((ad) => ad.isVertical)
+                : ads.firstWhereOrNull((ad) => !ad.isVertical);
+            final showAd =
+                controller.isLoadingVideoAds.value || selectedAd != null;
             final showBanners =
                 controller.isLoadingBanners.value ||
                 controller.banners.isNotEmpty;
 
-            if (!hasFeatured && !showBanners) {
+            if (!showAd && !showBanners) {
               return const SliverToBoxAdapter(child: SizedBox.shrink());
             }
 
             final bannerHeight = showBanners ? 180 : 0.0;
-            final double height = bannerHeight + (hasFeatured ? 156.0 : 0.0);
+            final adHeight = _videoAdHeight(context, selectedAd?.isVertical);
+            final double height = bannerHeight + (showAd ? adHeight : 0.0);
 
             return SliverPersistentHeader(
               pinned: false,
@@ -240,7 +248,8 @@ class HomeView extends GetView<HomeController> {
                 child: _TopHeroSection(
                   isLoadingBanners: controller.isLoadingBanners.value,
                   banners: controller.banners,
-                  featured: featured,
+                  isLoadingVideoAds: controller.isLoadingVideoAds.value,
+                  videoAd: selectedAd,
                 ),
               ),
             );
@@ -316,22 +325,33 @@ class HomeView extends GetView<HomeController> {
       ),
     );
   }
+
+  double _videoAdHeight(BuildContext context, bool? isVertical) {
+    if (isVertical == null) return 168;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final maxWidth = isVertical ? 380.0 : 1100.0;
+    final width = (screenWidth - 32).clamp(0.0, maxWidth);
+    final aspectRatio = isVertical ? 9 / 16 : 16 / 6;
+    return (width / aspectRatio) + 20;
+  }
 }
 
 class _TopHeroSection extends StatelessWidget {
   const _TopHeroSection({
     required this.isLoadingBanners,
     required this.banners,
-    required this.featured,
+    required this.isLoadingVideoAds,
+    required this.videoAd,
   });
 
   final bool isLoadingBanners;
   final List<BannerModel> banners;
-  final List<ItemWithProperty> featured;
+  final bool isLoadingVideoAds;
+  final VideoAdModel? videoAd;
 
   @override
   Widget build(BuildContext context) {
-    final showFeatured = featured.isNotEmpty;
+    final ad = videoAd;
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: SingleChildScrollView(
@@ -348,127 +368,18 @@ class _TopHeroSection extends StatelessWidget {
               else
                 BannerCarousel(banners: banners),
             ],
-            if (showFeatured) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                child: Row(
-                  children: [
-                    Text(
-                      'featured'.tr,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade700,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${featured.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
+            if (isLoadingVideoAds)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: AspectRatio(
+                  aspectRatio: 16 / 6,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: AppConstants.lightBeige),
+                  ),
                 ),
-              ),
-              SizedBox(
-                height: 86,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (_, i) {
-                    final e = featured[i];
-                    final img = e.primaryProperty?.image ?? '';
-                    return InkWell(
-                      onTap: () => Get.toNamed(
-                        Routes.itemPath(e.item.id),
-                        arguments: {'heroTag': 'hero_item_${e.item.id}'},
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 210,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: AppConstants.mediumBeige.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(13),
-                                bottomLeft: Radius.circular(13),
-                              ),
-                              child: SizedBox(
-                                width: 78,
-                                height: double.infinity,
-                                child: img.isNotEmpty
-                                    ? NetworkImageWithPlaceholder(
-                                        imageUrl: img,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Image.asset(
-                                        AppConstants.placeholderPath,
-                                        fit: BoxFit.cover,
-                                      ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      e.item.itemName,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      e.primaryProperty != null
-                                          ? '${AppConstants.currency} ${e.primaryProperty!.price.toStringAsFixed(2)}'
-                                          : '',
-                                      style: const TextStyle(
-                                        color: AppConstants.darkBeige,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 10),
-                  itemCount: featured.length,
-                ),
-              ),
-            ],
-            SizedBox(height: showFeatured ? 12 : 0),
+              )
+            else if (ad != null)
+              VideoAdSection(ad: ad),
           ],
         ),
       ),

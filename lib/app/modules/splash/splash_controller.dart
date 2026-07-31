@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../core/services/deep_link_service.dart';
 import '../../routes/app_pages.dart';
@@ -14,8 +15,9 @@ class SplashController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    _bootstrap().catchError((e) {
-      debugPrint('[SplashController] Bootstrap error: $e');
+    _bootstrap().catchError((Object error, StackTrace stackTrace) {
+      debugPrint('[SplashController] Bootstrap error: $error');
+      Sentry.captureException(error, stackTrace: stackTrace);
       Get.offAllNamed(Routes.home);
     });
   }

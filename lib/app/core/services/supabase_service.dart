@@ -1,4 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Thin wrapper around Supabase initialization and client access.
@@ -13,6 +14,7 @@ class SupabaseService {
     await Supabase.initialize(
       url: dotenv.env['SUPABASE_URL']!,
       publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
+      accessToken: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
     );
   }
 

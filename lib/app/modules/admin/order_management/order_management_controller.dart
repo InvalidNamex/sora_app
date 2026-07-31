@@ -68,7 +68,9 @@ class OrderManagementController extends GetxController {
 
   final orders = <OrderWithUser>[].obs;
   final filteredOrders = <OrderWithUser>[].obs;
-  final details = <OrderDetailModel>[].obs;
+  final orderDetails = <int, List<OrderDetailModel>>{}.obs;
+  final loadingOrderIds = <int>{}.obs;
+  final detailErrorOrderIds = <int>{}.obs;
   final isLoading = true.obs;
   final selectedFilter = 'all'.obs;
   final updatingOrderId = Rxn<int>();
@@ -143,7 +145,20 @@ class OrderManagementController extends GetxController {
       orders.value = (response as List)
           .map((e) => OrderWithUser.fromJson(e as Map<String, dynamic>))
           .toList();
+      final currentOrderIds = orders.map((order) => order.id).toSet();
+      orderDetails.removeWhere(
+        (orderId, _) => !currentOrderIds.contains(orderId),
+      );
+      loadingOrderIds.removeWhere(
+        (orderId) => !currentOrderIds.contains(orderId),
+      );
+      detailErrorOrderIds.removeWhere(
+        (orderId) => !currentOrderIds.contains(orderId),
+      );
       _applyFilter();
+    } catch (e, stackTrace) {
+      debugPrint('[OrderManagement] fetchOrders error: $e');
+      debugPrint('$stackTrace');
     } finally {
       isLoading.value = false;
     }
@@ -158,14 +173,36 @@ class OrderManagementController extends GetxController {
     }
   }
 
-  Future<void> fetchOrderDetails(int orderId) async {
-    final response = await SupabaseService.client
-        .from('order_detail')
-        .select()
-        .eq('orderMasterID', orderId);
-    details.value = (response as List)
-        .map((e) => OrderDetailModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+  List<OrderDetailModel> detailsFor(int orderId) =>
+      orderDetails[orderId] ?? const [];
+
+  bool isLoadingDetails(int orderId) => loadingOrderIds.contains(orderId);
+
+  bool hasDetailsError(int orderId) => detailErrorOrderIds.contains(orderId);
+
+  Future<void> fetchOrderDetails(int orderId, {bool force = false}) async {
+    if (loadingOrderIds.contains(orderId)) return;
+    if (!force && orderDetails.containsKey(orderId)) return;
+
+    loadingOrderIds.add(orderId);
+    detailErrorOrderIds.remove(orderId);
+    try {
+      final response = await SupabaseService.client
+          .from('order_detail')
+          .select()
+          .eq('orderMasterID', orderId)
+          .order('id');
+      orderDetails[orderId] = (response as List)
+          .map((e) => OrderDetailModel.fromJson(e as Map<String, dynamic>))
+          .toList(growable: false);
+    } catch (e, stackTrace) {
+      debugPrint('[OrderManagement] fetchOrderDetails($orderId) error: $e');
+      debugPrint('$stackTrace');
+      orderDetails.remove(orderId);
+      detailErrorOrderIds.add(orderId);
+    } finally {
+      loadingOrderIds.remove(orderId);
+    }
   }
 
   Future<void> updateStatus(OrderWithUser order, String newStatus) async {

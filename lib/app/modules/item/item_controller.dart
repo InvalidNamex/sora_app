@@ -44,15 +44,7 @@ class ItemController extends GetxController {
 
   int get selectedPropertyQuantity => selectedCartItem?.quantity ?? 0;
 
-  String get effectiveDescription {
-    final propertyDescription = (selectedProperty?.propertyDescription ?? '')
-        .trim();
-    if (propertyDescription.isNotEmpty) {
-      return propertyDescription;
-    }
-
-    return item.value?.itemDescription.trim() ?? '';
-  }
+  String get effectiveDescription => item.value?.itemDescription.trim() ?? '';
 
   @override
   void onInit() {
