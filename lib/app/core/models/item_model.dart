@@ -30,6 +30,8 @@ class ItemModel {
   final List<String> _accords;
   final List<String> _accordsEn;
   final List<int> _accordPercentages;
+  final int sillage;
+  final int longevity;
   final bool isFeatured;
 
   String get itemName => isEnglishLocale() && _itemNameEn.trim().isNotEmpty
@@ -108,6 +110,8 @@ class ItemModel {
     List<String> accords = const [],
     List<String> accordsEn = const [],
     List<int> accordPercentages = const [],
+    this.sillage = 3,
+    this.longevity = 3,
     this.isFeatured = false,
   }) : _itemName = itemName,
        _itemNameEn = itemNameEn,
@@ -185,6 +189,14 @@ class ItemModel {
     accords: _parseStringList(json['accords']),
     accordsEn: _parseStringList(json['accordsEN']),
     accordPercentages: _parsePercentageList(json['accordPercentages']),
+    sillage: _parseRating(json['sillage']),
+    longevity: _parseRating(json['longevity']),
     isFeatured: (json['isFeatured'] as bool?) ?? false,
   );
+
+  static int _parseRating(dynamic value) {
+    final rating = value is num ? value.toInt() : int.tryParse('$value');
+    if (rating == null) return 3;
+    return rating.clamp(1, 5);
+  }
 }

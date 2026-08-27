@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -27,6 +28,11 @@ List<int>? _parseAccordPercentages(String input) {
     percentages.add(percentage);
   }
   return percentages;
+}
+
+int _parsePerfumeRating(String input) {
+  final rating = int.tryParse(input.trim()) ?? 3;
+  return rating.clamp(1, 5);
 }
 
 class CatalogManagementView extends GetView<CatalogManagementController> {
@@ -520,6 +526,12 @@ class _ItemsTab extends GetView<CatalogManagementController> {
     final accordPercentagesCtrl = TextEditingController(
       text: isEdit ? item.accordPercentages.join('\n') : '',
     );
+    final sillageCtrl = TextEditingController(
+      text: isEdit ? item.sillage.toString() : '3',
+    );
+    final longevityCtrl = TextEditingController(
+      text: isEdit ? item.longevity.toString() : '3',
+    );
     bool isFeatured = isEdit ? item.isFeatured : false;
 
     Get.defaultDialog(
@@ -642,6 +654,18 @@ class _ItemsTab extends GetView<CatalogManagementController> {
                 helperText: 'one_term_per_line'.tr,
               ),
             ),
+            TextField(
+              controller: sillageCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(labelText: 'Sillage (1-5)'),
+            ),
+            TextField(
+              controller: longevityCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(labelText: 'Longevity (1-5)'),
+            ),
           ],
         ),
       ),
@@ -685,6 +709,8 @@ class _ItemsTab extends GetView<CatalogManagementController> {
             'accords': accords,
             'accordsEN': accordsEn,
             'accordPercentages': accordPercentages,
+            'sillage': _parsePerfumeRating(sillageCtrl.text),
+            'longevity': _parsePerfumeRating(longevityCtrl.text),
             'isFeatured': isFeatured,
           };
           if (isEdit) {

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../core/models/order_detail_model.dart';
 import '../../core/models/order_master_model.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/order_feedback_service.dart';
 
 class OrderDetailController extends GetxController {
   late final int orderId;
@@ -10,6 +11,7 @@ class OrderDetailController extends GetxController {
   final details = <OrderDetailModel>[].obs;
   final isLoading = true.obs;
   final hasError = false.obs;
+  final hasReview = false.obs;
 
   @override
   void onInit() {
@@ -47,6 +49,12 @@ class OrderDetailController extends GetxController {
       details.value = (detailResp as List)
           .map((e) => OrderDetailModel.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (orderMaster.value?.orderStatus == 'Delivered') {
+        hasReview.value =
+            await OrderFeedbackService.fetchForOrder(orderId) != null;
+      } else {
+        hasReview.value = false;
+      }
     } catch (e) {
       debugPrint('[OrderDetailController] fetchDetails error: $e');
       hasError.value = true;

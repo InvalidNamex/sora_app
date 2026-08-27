@@ -24,6 +24,8 @@ import '../modules/admin/reports/reports_binding.dart';
 import '../modules/admin/reports/reports_view.dart';
 import '../modules/admin/video_ad_management/video_ad_management_binding.dart';
 import '../modules/admin/video_ad_management/video_ad_management_view.dart';
+import '../modules/admin/feedback/feedback_binding.dart';
+import '../modules/admin/feedback/feedback_view.dart';
 import '../modules/affiliate/affiliate_binding.dart';
 import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
@@ -39,6 +41,8 @@ import '../modules/wishlist/wishlist_binding.dart';
 import '../modules/wishlist/wishlist_view.dart';
 import '../modules/history/order_detail_binding.dart';
 import '../modules/history/order_detail_view.dart';
+import '../modules/history/order_review_binding.dart';
+import '../modules/history/order_review_view.dart';
 import '../modules/location_picker/location_picker_binding.dart';
 import '../modules/location_picker/location_picker_page.dart';
 import '../modules/legal/privacy_policy_view.dart';
@@ -145,6 +149,12 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminFeedback,
+      page: () => const FeedbackView(),
+      binding: FeedbackBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.affiliateDashboard,
       page: () => const AffiliateView(),
       binding: AffiliateBinding(),
@@ -154,6 +164,12 @@ class AppPages {
       name: Routes.orderDetail,
       page: () => const OrderDetailView(),
       binding: OrderDetailBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: Routes.orderReview,
+      page: () => const OrderReviewView(),
+      binding: OrderReviewBinding(),
       middlewares: [AuthGuard()],
     ),
     GetPage(

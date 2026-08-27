@@ -42,6 +42,8 @@ class AppConstants {
   static const String kActiveAffiliateSource = 'active_affiliate_source';
   static const String kLocale = 'locale';
   static const String kCachedBanners = 'cached_banners';
+  static const String kCachedPromotions = 'cached_promotions';
+  static const String kCachedBundleDeals = 'cached_bundle_deals';
   static const String kCachedCategories = 'cached_categories';
   static const String kCachedItems = 'cached_items';
   static const String kFilterGender = 'filter_gender';

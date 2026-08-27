@@ -235,7 +235,10 @@ class BundleManagementController extends GetxController {
               path,
               token,
               bytes,
-              FileOptions(contentType: _contentType(extension)),
+              FileOptions(
+                contentType: _contentType(extension),
+                cacheControl: '31536000',
+              ),
             );
         bannerUrl = publicUrl;
       }

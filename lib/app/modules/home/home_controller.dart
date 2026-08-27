@@ -138,13 +138,21 @@ class HomeController extends GetxController {
             )
             .order('created_at', ascending: false);
         final promoList = promoRes as List;
-        activePromotions.value = promoList
+        final freshPromotions = promoList
             .map(
               (e) =>
                   PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)),
             )
             .where((p) => !p.isExpired)
             .toList();
+        final cachedPromotions = storage.read<List>(
+          AppConstants.kCachedPromotions,
+        );
+        if (jsonEncode(cachedPromotions) != jsonEncode(promoList) ||
+            activePromotions.isEmpty) {
+          activePromotions.value = freshPromotions;
+          await storage.write(AppConstants.kCachedPromotions, promoList);
+        }
       } catch (e) {
         debugPrint('[HomeController] fetchPromotion error: $e');
       }
@@ -154,11 +162,24 @@ class HomeController extends GetxController {
       final freshBannersJson = bannerRes as List;
 
       try {
-        bundleDeals.value = await BundleDealService.fetchBundles();
+        final freshBundles = await BundleDealService.fetchBundles();
+        final freshBundlesJson = freshBundles
+            .map((bundle) => bundle.toJson())
+            .toList(growable: false);
+        final cachedBundles = storage.read<List>(
+          AppConstants.kCachedBundleDeals,
+        );
+        if (jsonEncode(cachedBundles) != jsonEncode(freshBundlesJson) ||
+            bundleDeals.isEmpty) {
+          bundleDeals.value = freshBundles;
+          await storage.write(
+            AppConstants.kCachedBundleDeals,
+            freshBundlesJson,
+          );
+        }
       } catch (e, stackTrace) {
         debugPrint('[HomeController] fetchBundles error: $e');
         debugPrint('$stackTrace');
-        bundleDeals.clear();
       } finally {
         isLoadingBundles.value = false;
       }
@@ -307,6 +328,10 @@ class HomeController extends GetxController {
           storage.read<bool>(AppConstants.kFilterInStock) ?? false;
 
       final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
+      final cachedPromotions = storage.read<List>(
+        AppConstants.kCachedPromotions,
+      );
+      final cachedBundles = storage.read<List>(AppConstants.kCachedBundleDeals);
       final cachedCategories = storage.read<List>(
         AppConstants.kCachedCategories,
       );
@@ -317,6 +342,24 @@ class HomeController extends GetxController {
             .map((e) => BannerModel.fromJson(Map<String, dynamic>.from(e)))
             .toList();
         isLoadingBanners.value = false;
+      }
+      if (cachedPromotions != null) {
+        activePromotions.value = cachedPromotions
+            .map(
+              (e) =>
+                  PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
+            .where((promotion) => !promotion.isExpired)
+            .toList();
+      }
+      if (cachedBundles != null) {
+        bundleDeals.value = cachedBundles
+            .map(
+              (e) =>
+                  BundleDealModel.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
+            .toList();
+        isLoadingBundles.value = false;
       }
       if (cachedCategories != null) {
         categories.value = cachedCategories

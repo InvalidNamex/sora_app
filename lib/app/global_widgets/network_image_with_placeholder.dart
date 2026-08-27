@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_constants.dart';
@@ -21,7 +22,8 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
   final double? height;
   final AlignmentGeometry alignment;
   final bool enablePreview;
-  final OverlayPortalController _hoverPreviewController = OverlayPortalController();
+  final OverlayPortalController _hoverPreviewController =
+      OverlayPortalController();
   final LayerLink _previewLayerLink = LayerLink();
 
   @override
@@ -29,6 +31,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
     final Widget image = imageUrl.isEmpty
         ? _buildPlaceholderImage()
         : _buildNetworkImage(
+            context: context,
             imageFit: fit,
             imageWidth: width,
             imageHeight: height,
@@ -78,54 +81,57 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
   }
 
   Widget _buildNetworkImage({
+    required BuildContext context,
     required BoxFit imageFit,
     double? imageWidth,
     double? imageHeight,
     AlignmentGeometry imageAlignment = Alignment.center,
   }) {
-    return Image.network(
-      imageUrl,
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
       width: imageWidth,
       height: imageHeight,
       fit: imageFit,
-      alignment: imageAlignment,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        }
-
-        return Stack(
-          fit: StackFit.expand,
-          alignment: Alignment.center,
-          children: [
-            _buildPlaceholderImage(
-              imageFit: imageFit,
-              imageWidth: imageWidth,
-              imageHeight: imageHeight,
-              imageAlignment: imageAlignment,
+      alignment: imageAlignment.resolve(Directionality.of(context)),
+      placeholder: (context, _) => Stack(
+        fit: StackFit.expand,
+        alignment: Alignment.center,
+        children: [
+          _buildPlaceholderImage(
+            imageFit: imageFit,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            imageAlignment: imageAlignment,
+          ),
+          const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
+      errorWidget: (context, _, error) {
+        debugPrint(
+          '[NetworkImageWithPlaceholder] Failed to load $imageUrl: $error',
+        );
+        return _buildPlaceholderImage(
+          imageFit: imageFit,
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+          imageAlignment: imageAlignment,
         );
       },
-      errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(
-        imageFit: imageFit,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
-        imageAlignment: imageAlignment,
-      ),
     );
   }
 
   Widget _buildHoverPreview(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
-    final double previewSize = math.min(math.min(screenSize.width * 0.35, screenSize.height * 0.35), 360);
+    final double previewSize = math.min(
+      math.min(screenSize.width * 0.35, screenSize.height * 0.35),
+      360,
+    );
 
     return IgnorePointer(
       child: CompositedTransformFollower(
@@ -144,7 +150,9 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x26000000),
@@ -154,6 +162,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
               ],
             ),
             child: _buildNetworkImage(
+              context: context,
               imageFit: BoxFit.contain,
               imageWidth: previewSize,
               imageHeight: previewSize,
@@ -190,6 +199,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
                   minScale: 1,
                   maxScale: 4,
                   child: _buildNetworkImage(
+                    context: dialogContext,
                     imageFit: BoxFit.contain,
                     imageWidth: previewWidth,
                     imageHeight: previewHeight,

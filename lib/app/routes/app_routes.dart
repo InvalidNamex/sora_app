@@ -11,6 +11,7 @@ abstract class Routes {
   static const wishlist = '/wishlist';
   static const orderDetail = '/orders/detail';
   static const orderDetailById = '/orders/:id';
+  static const orderReview = '/orders/:id/review';
   static const affiliateRef = '/ref/:uid';
   static const adminDashboard = '/admin';
   static const adminOrders = '/admin-orders';
@@ -21,6 +22,7 @@ abstract class Routes {
   static const adminVideoAds = '/admin-video-ads';
   static const adminNotifications = '/admin-notifications';
   static const adminItemSuggestions = '/admin-item-suggestions';
+  static const adminFeedback = '/admin-feedback';
   static const affiliateDashboard = '/affiliate';
   static const locationPicker = '/location-picker';
   static const bundleDetail = '/bundle/:id';
@@ -30,5 +32,6 @@ abstract class Routes {
   static String itemPath(int id) => '/item/$id';
   static String bundlePath(int id) => '/bundle/$id';
   static String orderDetailPath(int id) => '/orders/$id';
+  static String orderReviewPath(int id) => '/orders/$id/review';
   static String affiliateRefPath(String uid) => '/ref/$uid';
 }

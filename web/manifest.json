@@ -1,11 +1,11 @@
 {
-    "name": "sora",
-    "short_name": "sora",
+    "name": "Premium Perfumes and Cosmetics",
+    "short_name": "Sora",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F1F0E9",
     "theme_color": "#B09263",
-    "description": "A new Flutter project.",
+    "description": "Premium Perfumes and Cosmetics",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

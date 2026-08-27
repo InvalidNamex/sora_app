@@ -146,6 +146,25 @@ implementation:
 * quantity int2
 * price float8
 
+**table order_feedback:**
+* id int8 primary
+* order_id int8 unique foreign key to order_master.id
+* user_id int8 foreign key to users.id
+* delivery_rating int2 (1-5)
+* delivery_comment text nullable
+* created_at / updated_at timestamptz
+* Customers can submit or edit feedback only for their own Delivered orders.
+
+**table product_reviews:**
+* id int8 primary
+* order_id int8 foreign key to order_master.id
+* order_detail_id int8 unique foreign key to order_detail.id
+* user_id int8 foreign key to users.id
+* item_property_id int8 nullable foreign key to item_properties.id
+* product_rating int2 (1-5)
+* review_text text nullable
+* created_at / updated_at timestamptz
+
 **table vouchers:**
 * id int8 primary
 * voucherCode text (unique)

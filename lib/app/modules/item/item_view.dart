@@ -355,6 +355,10 @@ class _ItemDetails extends StatelessWidget {
 
           const SizedBox(height: 20),
 
+          _PerfumeRatings(sillage: item.sillage, longevity: item.longevity),
+
+          const SizedBox(height: 24),
+
           // ── Variant pills ──────────────────────────────────────────
           Obx(() {
             if (controller.properties.isEmpty) return const SizedBox.shrink();
@@ -420,6 +424,56 @@ class _ItemDetails extends StatelessWidget {
               icon: Icons.local_florist_outlined,
               values: item.notes,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerfumeRatings extends StatelessWidget {
+  const _PerfumeRatings({required this.sillage, required this.longevity});
+
+  final int sillage;
+  final int longevity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RatingRow(label: 'sillage'.tr, rating: sillage),
+        const SizedBox(height: 8),
+        _RatingRow(label: 'longevity'.tr, rating: longevity),
+      ],
+    );
+  }
+}
+
+class _RatingRow extends StatelessWidget {
+  const _RatingRow({required this.label, required this.rating});
+
+  final String label;
+  final int rating;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: '$label: $rating/5',
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: theme.textTheme.bodyMedium),
+          ),
+          ...List.generate(
+            5,
+            (index) => Icon(
+              index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+              size: 21,
+              color: AppConstants.darkBeige,
+            ),
+          ),
         ],
       ),
     );

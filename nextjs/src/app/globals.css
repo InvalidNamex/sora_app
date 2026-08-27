@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-kufi: var(--font-kufi), ui-sans-serif, system-ui, sans-serif;
+  --font-messiri: var(--font-messiri), ui-sans-serif, system-ui, sans-serif;
+  
+  --font-sans: var(--font-kufi), ui-sans-serif, system-ui, sans-serif;
+}

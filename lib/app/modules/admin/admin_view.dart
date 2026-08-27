@@ -136,6 +136,12 @@ class AdminView extends GetView<AdminController> {
                 ),
                 const SizedBox(height: 10),
                 _NavTile(
+                  icon: Icons.rate_review_outlined,
+                  title: 'customer_feedback'.tr,
+                  onTap: () => Get.toNamed(Routes.adminFeedback),
+                ),
+                const SizedBox(height: 10),
+                _NavTile(
                   icon: Icons.bar_chart,
                   title: 'reports'.tr,
                   onTap: () => Get.toNamed(Routes.adminReports),

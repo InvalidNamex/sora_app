@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/models/category_model.dart';
 import '../../../core/models/sub_category_model.dart';
@@ -160,7 +161,11 @@ class CatalogManagementController extends GetxController {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       await SupabaseService.client.storage
           .from('categories')
-          .uploadBinary(fileName, bytes);
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(cacheControl: '31536000'),
+          );
       return SupabaseService.client.storage
           .from('categories')
           .getPublicUrl(fileName);

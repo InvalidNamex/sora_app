@@ -27,6 +27,24 @@ class BundleDealItemModel {
 
   double get regularTotal => property.price * quantity;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'bundleID': bundleId,
+    'quantity': quantity,
+    'item_properties': {
+      'id': property.id,
+      'itemID': property.itemId,
+      'size': property.sizeMl,
+      'image': property.image,
+      'propertyDescription': property.descAr,
+      'propertyDescriptionEN': property.descEn,
+      'price': property.price,
+      'inStock': property.inStock,
+      'isDefault': property.isDefault,
+      'items': {'itemName': itemNameAr, 'itemNameEN': itemNameEn},
+    },
+  };
+
   factory BundleDealItemModel.fromJson(Map<String, dynamic> json) {
     final propertyJson =
         json['item_properties'] as Map<String, dynamic>? ??
@@ -94,6 +112,19 @@ class BundleDealModel {
       isActive &&
       items.isNotEmpty &&
       items.every((item) => item.property.inStock);
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': titleAr,
+    'titleEN': titleEn,
+    'description': descriptionAr,
+    'descriptionEN': descriptionEn,
+    'bannerImage': bannerImage,
+    'dealPrice': dealPrice,
+    'isActive': isActive,
+    'sortOrder': sortOrder,
+    'bundle_deal_items': items.map((item) => item.toJson()).toList(),
+  };
 
   factory BundleDealModel.fromJson(Map<String, dynamic> json) {
     final rawItems = (json['bundle_deal_items'] as List?) ?? const [];

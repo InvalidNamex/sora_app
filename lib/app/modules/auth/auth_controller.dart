@@ -46,6 +46,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   bool _isRegisteringFcm = false;
   bool _hasScheduledFcmRetry = false;
   bool _phoneOtpRequestActive = false;
+  Future<void>? _supabaseRoleSync;
   int _fcmRetryAttempts = 0;
   static const int _maxFcmRetryAttempts = 5;
 
@@ -152,6 +153,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     // Restore Supabase user on cold start (returning user already signed in).
     if (currentUser.value == null) {
       try {
+        await _ensureSupabaseAuthenticatedRole(user);
         final result = await SupabaseService.client
             .from('users')
             .select()
@@ -500,6 +502,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   /// registration runs in the background so login never waits on OS prompts,
   /// APNs, or FCM token availability.
   Future<void> _postAuthSetup(fb.User firebaseUser) async {
+    await _ensureSupabaseAuthenticatedRole(firebaseUser);
     final model = await _upsertSupabaseUser(firebaseUser);
     await _syncGuestCart(model.id);
     currentUser.value = model;
@@ -508,6 +511,44 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     final openedPendingRoute = await DeepLinkService.to.openPendingAuthRoute();
     if (!openedPendingRoute && Get.currentRoute != Routes.home) {
       Get.offAllNamed(Routes.home);
+    }
+  }
+
+  /// Firebase ID tokens need an `authenticated` role claim before PostgREST
+  /// can map them to Supabase's authenticated database role. The Edge Function
+  /// verifies the Firebase token and preserves every existing custom claim.
+  Future<void> _ensureSupabaseAuthenticatedRole(fb.User user) async {
+    final existingSync = _supabaseRoleSync;
+    if (existingSync != null) return existingSync;
+
+    final sync = _syncSupabaseAuthenticatedRole(user);
+    _supabaseRoleSync = sync;
+    try {
+      await sync;
+    } finally {
+      if (identical(_supabaseRoleSync, sync)) {
+        _supabaseRoleSync = null;
+      }
+    }
+  }
+
+  Future<void> _syncSupabaseAuthenticatedRole(fb.User user) async {
+    final idToken = await user.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Firebase did not provide an ID token.');
+    }
+
+    final response = await SupabaseService.client.functions.invoke(
+      'sync-auth-claims',
+      headers: {'Authorization': 'Bearer $idToken'},
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError('Could not provision Supabase authentication claims.');
+    }
+
+    final data = response.data;
+    if (data is Map && data['token_refresh_required'] == true) {
+      await user.getIdToken(true);
     }
   }
 

@@ -96,5 +96,19 @@ void main() {
       expect(restored.bundle.items.first.quantity, 2);
       expect(restored.subtotal, 500);
     });
+
+    test('cache serialization round-trips bundle media and items', () {
+      final original = BundleDealModel.fromJson(json);
+      final restored = BundleDealModel.fromJson(original.toJson());
+
+      expect(restored.id, original.id);
+      expect(restored.bannerImage, original.bannerImage);
+      expect(restored.items, hasLength(2));
+      expect(
+        restored.items.first.property.image,
+        original.items.first.property.image,
+      );
+      expect(restored.regularPrice, original.regularPrice);
+    });
   });
 }
