@@ -5,6 +5,7 @@ import '../../modules/cart/cart_controller.dart';
 import '../../modules/history/history_controller.dart';
 import '../../modules/home/home_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
+import '../../modules/vera/vera_controller.dart';
 import '../../modules/wishlist/wishlist_controller.dart';
 import '../services/deep_link_service.dart';
 import '../services/in_app_messaging_service.dart';
@@ -23,5 +24,6 @@ class AppBinding {
     Get.put(InAppMessagingService(), permanent: true);
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
     Get.lazyPut<HistoryController>(() => HistoryController(), fenix: true);
+    Get.lazyPut<VeraController>(() => VeraController(), fenix: true);
   }
 }

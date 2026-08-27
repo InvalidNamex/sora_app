@@ -25,6 +25,9 @@ class PrivacyPolicyView extends StatelessWidget {
           'device type, crash logs, error stack traces, and app performance or '
           'hang information. If you choose a location on the map, we use the '
           'selected or device location to help create a delivery address. We '
+          'process messages you choose to send to the Vera perfume assistant, '
+          'but Sora does not save Vera message content as chat history. We keep '
+          'non-content usage counters to enforce limits and prevent misuse. We '
           'do not collect payment-card details because current orders are paid '
           'by cash on delivery.',
     ),
@@ -45,7 +48,8 @@ class PrivacyPolicyView extends StatelessWidget {
           'cart and wishlist; fulfil, deliver, and support orders; send '
           'service and optional promotional notifications; operate promotions '
           'and the affiliate program; prevent fraud and misuse; diagnose '
-          'crashes and errors; improve app reliability; and meet legal, '
+          'crashes and errors; provide perfume-profile comparisons through '
+          'Vera; improve app reliability; and meet legal, '
           'accounting, and regulatory duties.',
     ),
     (
@@ -65,6 +69,8 @@ class PrivacyPolicyView extends StatelessWidget {
           'operate the app and store, including Firebase (authentication and '
           'notifications), Supabase (database, storage, and server functions), '
           'Sentry (error and crash reporting), Vercel (website hosting), '
+          'DeepInfra (AI processing for Vera), licensed fragrance-data '
+          'providers used to resolve perfume profiles, '
           'mapping services used to display maps, and delivery or support '
           'providers needed to complete an order. We may also disclose '
           'information when required by law or to protect users, Sora, or '
@@ -81,7 +87,10 @@ class PrivacyPolicyView extends StatelessWidget {
           'needed to fulfil an active order or meet accounting, tax, fraud '
           'prevention, dispute, and legal obligations. Personal delivery '
           'details retained for an active order are anonymized when the order '
-          'reaches a final status unless longer retention is legally required.',
+          'reaches a final status unless longer retention is legally required. '
+          'Vera message content and perfume preferences are not retained by '
+          'Sora as conversation history; non-content request, token, and cost '
+          'counters are retained for security, abuse prevention, and budgeting.',
     ),
     (
       title: '8. Account deletion and your choices',
@@ -143,7 +152,7 @@ class PrivacyPolicyView extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Effective date: July 20, 2026',
+                  'Effective date: August 27, 2026',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppConstants.mediumBeige,
                   ),

@@ -12,6 +12,7 @@ import '../modules/home/home_view.dart';
 import '../modules/navigation/nav_controller.dart';
 import '../modules/profile/profile_view.dart';
 import 'app_drawer.dart';
+import 'vera_assistant_overlay.dart';
 
 /// Adaptive navigation shell.
 ///
@@ -75,28 +76,32 @@ class AppScaffold extends GetView<NavController> {
         final cartCount = CartController.to.totalItems;
 
         if (Responsive.isDesktop(context)) {
-          return Scaffold(
-            appBar: _DesktopAppBar(currentIndex: index, cartCount: cartCount),
-            body: Row(
-              children: [
-                const AppDrawer(isDesktop: true),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: IndexedStack(index: index, children: _tabs),
-                ),
-              ],
+          return VeraAssistantOverlay(
+            child: Scaffold(
+              appBar: _DesktopAppBar(currentIndex: index, cartCount: cartCount),
+              body: Row(
+                children: [
+                  const AppDrawer(isDesktop: true),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: IndexedStack(index: index, children: _tabs),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        return Scaffold(
-          key: controller.scaffoldKey,
-          drawer: const AppDrawer(),
-          body: IndexedStack(index: index, children: _tabs),
-          bottomNavigationBar: _MobileBottomNav(
-            currentIndex: index,
-            cartCount: cartCount,
-            onTap: controller.setIndex,
+        return VeraAssistantOverlay(
+          child: Scaffold(
+            key: controller.scaffoldKey,
+            drawer: const AppDrawer(),
+            body: IndexedStack(index: index, children: _tabs),
+            bottomNavigationBar: _MobileBottomNav(
+              currentIndex: index,
+              cartCount: cartCount,
+              onTap: controller.setIndex,
+            ),
           ),
         );
       }),

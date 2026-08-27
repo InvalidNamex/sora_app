@@ -9,6 +9,7 @@ class AppTranslations extends Translations {
       'app_name': 'سورا',
       'error': 'خطأ',
       'cancel': 'إلغاء',
+      'close': 'إغلاق',
       'or': 'أو',
       'wishlist_empty': 'المفضلة فارغة',
       'all': 'الكل',
@@ -219,6 +220,18 @@ class AppTranslations extends Translations {
       'women': 'نساء',
       'unisex': 'للجنسين',
       'in_stock_only': 'المتاح فقط',
+      // ── Vera perfume assistant ───────────────────────────────
+      'vera_name': 'Vera',
+      'vera_open': 'افتح Vera، مساعدة اختيار العطور',
+      'vera_subtitle': 'مساعدتك لاختيار العطر المناسب',
+      'vera_welcome':
+          'أهلاً! أنا Vera ✨ قولي عطر بتحبيه أو بتحبه، وأنا هجيبلك أقرب اختيارات من Sora.',
+      'vera_input_hint': 'مثلاً: أنا بحب Dior Sauvage...',
+      'vera_new_chat': 'محادثة جديدة',
+      'vera_message_too_long': 'الرسالة لازم تكون ٥٠٠ حرف أو أقل.',
+      'vera_service_error': 'حصلت مشكلة مؤقتة. جرب تاني بعد شوية.',
+      'vera_restock_soon': 'مش متوفر دلوقتي، وهنوفره قريب',
+      'vera_view_product': 'شوف العطر',
       // ── Contact ───────────────────────────────────────────────
       'contact_us': 'تواصل معنا',
       'suggest_item': 'اقترح منتجاً جديداً',
@@ -408,6 +421,7 @@ class AppTranslations extends Translations {
       'app_name': 'Sora',
       'error': 'Error',
       'cancel': 'Cancel',
+      'close': 'Close',
       'or': 'Or',
       'all': 'All',
       'order': 'Order',
@@ -630,6 +644,19 @@ class AppTranslations extends Translations {
       'women': 'Women',
       'unisex': 'Unisex',
       'in_stock_only': 'In Stock Only',
+      // ── Vera perfume assistant ───────────────────────────────
+      'vera_name': 'Vera',
+      'vera_open': 'Open Vera perfume assistant',
+      'vera_subtitle': 'Your perfume discovery assistant',
+      'vera_welcome':
+          'Hi! I’m Vera ✨ Tell me a perfume you like and I’ll find the closest options at Sora.',
+      'vera_input_hint': 'For example: I like Dior Sauvage...',
+      'vera_new_chat': 'New conversation',
+      'vera_message_too_long': 'Your message must be 500 characters or fewer.',
+      'vera_service_error':
+          'Something went wrong temporarily. Please try again shortly.',
+      'vera_restock_soon': 'Out of stock — we’ll refill it soon',
+      'vera_view_product': 'View perfume',
       // ── Contact ───────────────────────────────────────────────
       'contact_us': 'Contact Us',
       'suggest_item': 'Suggest a New Item',
