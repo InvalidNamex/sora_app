@@ -60,3 +60,65 @@ Deno.test('ranking excludes the source item and respects the requested limit', (
   assertEquals(ranked.length, 1);
   assertEquals(ranked[0].itemId, 2);
 });
+
+Deno.test('recommendations prefer an in-stock 50 ml property', () => {
+  const result = scorePerfume(source, candidate({
+    properties: [
+      {
+        id: 10,
+        itemId: 1,
+        sizeMl: 100,
+        image: '',
+        price: 800,
+        inStock: true,
+        isDefault: true,
+        descriptionAr: '',
+        descriptionEn: '',
+      },
+      {
+        id: 11,
+        itemId: 1,
+        sizeMl: 50,
+        image: '',
+        price: 450,
+        inStock: true,
+        isDefault: false,
+        descriptionAr: '',
+        descriptionEn: '',
+      },
+    ],
+  }));
+
+  assertEquals(result.property?.sizeMl, 50);
+});
+
+Deno.test('recommendations do not prefer an out-of-stock 50 ml property', () => {
+  const result = scorePerfume(source, candidate({
+    properties: [
+      {
+        id: 10,
+        itemId: 1,
+        sizeMl: 100,
+        image: '',
+        price: 800,
+        inStock: true,
+        isDefault: false,
+        descriptionAr: '',
+        descriptionEn: '',
+      },
+      {
+        id: 11,
+        itemId: 1,
+        sizeMl: 50,
+        image: '',
+        price: 450,
+        inStock: false,
+        isDefault: true,
+        descriptionAr: '',
+        descriptionEn: '',
+      },
+    ],
+  }));
+
+  assertEquals(result.property?.sizeMl, 100);
+});

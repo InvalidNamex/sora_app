@@ -103,6 +103,9 @@ function primaryProperty(properties: CatalogProperty[]): CatalogProperty | null 
   if (properties.length === 0) return null;
   return [...properties].sort((a, b) => {
     if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+    if (a.inStock && b.inStock && (a.sizeMl === 50) !== (b.sizeMl === 50)) {
+      return a.sizeMl === 50 ? -1 : 1;
+    }
     if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
     if (a.sizeMl !== b.sizeMl) return b.sizeMl - a.sizeMl;
     return a.id - b.id;

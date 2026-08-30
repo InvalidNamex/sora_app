@@ -46,6 +46,11 @@ class AppConstants {
   static const String kCachedBundleDeals = 'cached_bundle_deals';
   static const String kCachedCategories = 'cached_categories';
   static const String kCachedItems = 'cached_items';
+  static const String kCachedVideoAds = 'cached_video_ads';
+  static const String kHomeContentVersion = 'home_content_version';
+  static const String kMediaContentVersion = 'media_content_version';
+  static const String kHomeCacheUpdatedAt = 'home_cache_updated_at';
+  static const String kHomeCacheSchema = 'home_cache_schema';
   static const String kFilterGender = 'filter_gender';
   static const String kFilterInStock = 'filter_in_stock';
 }

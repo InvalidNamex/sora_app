@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/services/media_cache_service.dart';
 
 class NetworkImageWithPlaceholder extends StatelessWidget {
   NetworkImageWithPlaceholder({
@@ -87,12 +88,24 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
     double? imageHeight,
     AlignmentGeometry imageAlignment = Alignment.center,
   }) {
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final memCacheWidth = imageWidth != null && imageWidth.isFinite
+        ? (imageWidth * devicePixelRatio).round().clamp(1, 4096)
+        : null;
+    final memCacheHeight = imageHeight != null && imageHeight.isFinite
+        ? (imageHeight * devicePixelRatio).round().clamp(1, 4096)
+        : null;
     return CachedNetworkImage(
+      cacheManager: MediaCacheService.images,
+      cacheKey: MediaCacheService.imageKey(imageUrl),
       imageUrl: imageUrl,
       width: imageWidth,
       height: imageHeight,
+      memCacheWidth: memCacheWidth,
+      memCacheHeight: memCacheHeight,
       fit: imageFit,
       alignment: imageAlignment.resolve(Directionality.of(context)),
+      fadeInDuration: const Duration(milliseconds: 120),
       placeholder: (context, _) => Stack(
         fit: StackFit.expand,
         alignment: Alignment.center,

@@ -26,10 +26,7 @@ class SplashController extends GetxController {
     // Eagerly instantiate HomeController to read cache
     final homeController = Get.find<HomeController>();
 
-    final hasCache =
-        homeController.banners.isNotEmpty &&
-        homeController.categories.isNotEmpty &&
-        homeController.items.isNotEmpty;
+    final hasCache = homeController.hasPersistedHomeCache;
 
     if (!hasCache) {
       debugPrint(

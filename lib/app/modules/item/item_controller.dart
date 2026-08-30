@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -11,6 +13,7 @@ import '../../core/utils/app_snackbar.dart';
 import '../../routes/app_pages.dart';
 import '../auth/auth_controller.dart';
 import '../cart/cart_controller.dart';
+import '../home/home_controller.dart';
 
 class ItemController extends GetxController {
   static ItemController get to => Get.find();
@@ -58,35 +61,70 @@ class ItemController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    _fetchItem();
+    final cached = Get.isRegistered<HomeController>()
+        ? HomeController.to.cachedItemRow(_itemId)
+        : null;
+    if (cached != null) {
+      _applyItemRow(cached);
+      isLoading.value = false;
+      unawaited(_fetchItem(showLoading: false));
+    } else {
+      unawaited(_fetchItem());
+    }
   }
 
-  Future<void> _fetchItem() async {
-    isLoading.value = true;
+  void _applyItemRow(Map<String, dynamic> row) {
+    final selectedPropertyId = selectedProperty?.id;
+    item.value = ItemModel.fromJson(row);
+    final rawProperties = (row['item_properties'] as List?) ?? const [];
+    properties.value =
+        rawProperties
+            .whereType<Map>()
+            .map(
+              (property) => ItemPropertyModel.fromJson(
+                Map<String, dynamic>.from(property),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.sizeMl.compareTo(right.sizeMl));
+    final restoredIndex = selectedPropertyId == null
+        ? -1
+        : properties.indexWhere(
+            (property) => property.id == selectedPropertyId,
+          );
+    selectedPropertyIndex.value = restoredIndex >= 0 ? restoredIndex : 0;
+  }
+
+  Future<void> _fetchItem({bool showLoading = true}) async {
+    if (showLoading) isLoading.value = true;
     hasError.value = false;
     try {
-      final itemResponse = await SupabaseService.client
-          .from('items')
-          .select()
-          .eq('id', _itemId)
-          .single();
-      item.value = ItemModel.fromJson(itemResponse);
-
-      final propsResponse = await SupabaseService.client
-          .from('item_properties')
-          .select()
-          .eq('itemID', _itemId)
-          .order('size');
-      properties.value = (propsResponse as List)
-          .map((e) => ItemPropertyModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      selectedPropertyIndex.value = 0;
+      final responses = await Future.wait<dynamic>([
+        SupabaseService.client
+            .from('items')
+            .select()
+            .eq('id', _itemId)
+            .single(),
+        SupabaseService.client
+            .from('item_properties')
+            .select()
+            .eq('itemID', _itemId)
+            .order('size'),
+      ]);
+      final itemRow = Map<String, dynamic>.from(responses[0] as Map);
+      final propertyRows = (responses[1] as List)
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      _applyItemRow({...itemRow, 'item_properties': propertyRows});
+      if (Get.isRegistered<HomeController>()) {
+        HomeController.to.cacheItemRow(itemRow, propertyRows);
+      }
     } catch (e) {
       debugPrint('[ItemController] fetchItem error: $e');
-      hasError.value = true;
+      if (item.value == null) hasError.value = true;
     } finally {
-      isLoading.value = false;
+      if (showLoading) isLoading.value = false;
     }
   }
 

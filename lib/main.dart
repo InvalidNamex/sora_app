@@ -14,6 +14,7 @@ import 'app/core/services/notification_service.dart';
 import 'app/core/services/supabase_service.dart';
 import 'app/core/theme/app_theme.dart';
 import 'app/core/utils/web_url_strategy.dart';
+import 'app/core/widgets/app_update_prompt.dart';
 import 'app/routes/app_pages.dart';
 import 'app/translations/app_translations.dart';
 import 'firebase_options.dart';
@@ -89,6 +90,10 @@ class SoraApp extends StatelessWidget {
         ],
         initialRoute: AppPages.initial,
         getPages: AppPages.routes,
+        builder: (context, child) => AppUpdatePrompt(
+          languageCode: settings.localeCode.value,
+          child: child ?? const SizedBox.shrink(),
+        ),
       );
     });
   }

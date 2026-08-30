@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/video_ad_model.dart';
+import '../../../core/services/cached_video_controller.dart';
 import '../../../routes/app_pages.dart';
 
 class VideoAdSection extends StatefulWidget {
@@ -18,6 +19,7 @@ class VideoAdSection extends StatefulWidget {
 class _VideoAdSectionState extends State<VideoAdSection> {
   VideoPlayerController? _controller;
   bool _hasError = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -36,27 +38,37 @@ class _VideoAdSectionState extends State<VideoAdSection> {
   }
 
   Future<void> _loadVideo() async {
+    final generation = ++_loadGeneration;
     final url = Uri.tryParse(widget.ad.videoUrl);
     if (url == null || !url.hasAbsolutePath) {
       if (mounted) setState(() => _hasError = true);
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(url);
-    _controller = controller;
+    VideoPlayerController? controller;
     try {
+      controller = await createCachedVideoController(url);
+      if (!mounted || generation != _loadGeneration) {
+        await controller.dispose();
+        return;
+      }
+      _controller = controller;
       await controller.initialize();
       await controller.setLooping(true);
       await controller.setVolume(0);
       await controller.play();
       if (mounted) setState(() {});
     } catch (_) {
-      await controller.dispose();
-      if (mounted) setState(() => _hasError = true);
+      await controller?.dispose();
+      if (mounted && generation == _loadGeneration) {
+        _controller = null;
+        setState(() => _hasError = true);
+      }
     }
   }
 
   void _disposeController() {
+    _loadGeneration++;
     _controller?.dispose();
     _controller = null;
   }

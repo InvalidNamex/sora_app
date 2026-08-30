@@ -1,7 +1,8 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage_wasm/get_storage_wasm.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
 
@@ -15,6 +16,7 @@ import '../../core/models/sub_category_model.dart';
 import '../../core/models/video_ad_model.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/bundle_deal_service.dart';
+import '../../core/services/media_cache_service.dart';
 import '../../core/services/video_ad_service.dart';
 import '../../core/utils/app_snackbar.dart';
 
@@ -32,8 +34,12 @@ class ItemWithProperty {
   }
 }
 
-class HomeController extends GetxController {
+class HomeController extends GetxController with WidgetsBindingObserver {
   static HomeController get to => Get.find();
+
+  static const _cacheSchema = 2;
+  static const _fallbackRefreshAge = Duration(minutes: 15);
+  static const _versionPollInterval = Duration(minutes: 5);
 
   final banners = <BannerModel>[].obs;
   final bundleDeals = <BundleDealModel>[].obs;
@@ -59,20 +65,50 @@ class HomeController extends GetxController {
   final hoveredItemId = Rxn<int>();
   final pressedItemId = Rxn<int>();
 
+  final Map<String, List<ItemWithProperty>> _itemQueryCache = {};
+  final Map<int, List<SubCategoryModel>> _subCategoryCache = {};
+  final Map<int, Map<String, dynamic>> _itemRowsCache = {};
+  RealtimeChannel? _contentVersionChannel;
+  Timer? _versionPollTimer;
+  Timer? _refreshDebounce;
+  Timer? _promotionExpiryTimer;
+  int _contentVersion = 0;
+  int _mediaVersion = 0;
+
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _loadFromCache();
   }
 
   @override
   void onReady() {
     super.onReady();
-    checkForUpdates();
+    _subscribeToContentVersion();
+    unawaited(checkForUpdates());
     ever(selectedCategoryId, (_) => _onCategoryChanged());
     ever(selectedSubCategoryId, (_) => _fetchItems());
     ever(genderFilter, (_) => _applyFilters());
     ever<bool>(inStockOnly, (_) => _applyFilters());
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _versionPollTimer?.cancel();
+    _refreshDebounce?.cancel();
+    _promotionExpiryTimer?.cancel();
+    final channel = _contentVersionChannel;
+    if (channel != null) SupabaseService.client.removeChannel(channel);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleVersionCheck(const Duration(milliseconds: 250));
+    }
   }
 
   List<ItemWithProperty> _parseItems(List rawItems) {
@@ -81,6 +117,7 @@ class HomeController extends GetxController {
       try {
         final json = Map<String, dynamic>.from(raw as Map);
         final item = ItemModel.fromJson(json);
+        if (item.id > 0) _itemRowsCache[item.id] = json;
         final props = (json['item_properties'] as List?)
             ?.map(
               (p) => ItemPropertyModel.fromJson(
@@ -107,214 +144,295 @@ class HomeController extends GetxController {
   }
 
   Future<List<dynamic>> _fetchSubCategoriesForCategory(int categoryId) async {
+    return await SupabaseService.client
+        .from('sub_categories')
+        .select()
+        .eq('categoryID', categoryId);
+  }
+
+  bool _hasPersistedHomeCache(GetStorage storage) =>
+      storage.read<int>(AppConstants.kHomeCacheSchema) == _cacheSchema &&
+      storage.read<List>(AppConstants.kCachedBanners) != null &&
+      storage.read<List>(AppConstants.kCachedPromotions) != null &&
+      storage.read<List>(AppConstants.kCachedBundleDeals) != null &&
+      storage.read<List>(AppConstants.kCachedVideoAds) != null &&
+      storage.read<List>(AppConstants.kCachedCategories) != null &&
+      storage.read<List>(AppConstants.kCachedItems) != null &&
+      storage.read<int>(AppConstants.kMediaContentVersion) != null;
+
+  bool get hasPersistedHomeCache => _hasPersistedHomeCache(GetStorage());
+
+  bool _fallbackCacheIsFresh(GetStorage storage) {
+    final timestamp = storage.read<int>(AppConstants.kHomeCacheUpdatedAt);
+    if (timestamp == null) return false;
+    final updatedAt = DateTime.fromMillisecondsSinceEpoch(
+      timestamp,
+      isUtc: true,
+    );
+    return DateTime.now().toUtc().difference(updatedAt) < _fallbackRefreshAge;
+  }
+
+  Future<({int? data, int? media})?> _fetchRemoteContentVersions() async {
     try {
-      return await SupabaseService.client
-          .from('sub_categories')
-          .select()
-          .eq('categoryID', categoryId);
-    } catch (e1) {
-      debugPrint('[HomeController] Failed to fetch sub_categories: $e1');
-      return await SupabaseService.client
-          .from('sub_categories')
-          .select()
-          .eq('categoryID', categoryId);
+      final rows = await SupabaseService.client
+          .from('app_content_versions')
+          .select('content_key, version');
+      int? dataVersion;
+      int? mediaVersion;
+      for (final row in rows) {
+        final version = (row['version'] as num?)?.toInt();
+        if (row['content_key'] == 'home') dataVersion = version;
+        if (row['content_key'] == 'home_media') mediaVersion = version;
+      }
+      return (data: dataVersion, media: mediaVersion);
+    } catch (error) {
+      debugPrint('[HomeController] content version check skipped: $error');
+      return null;
     }
   }
 
-  Future<void> checkForUpdates() async {
+  Future<List<dynamic>> _fetchPromotionRows() async {
+    final response = await SupabaseService.client
+        .from('promotions')
+        .select()
+        .or(
+          'expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}',
+        )
+        .order('created_at', ascending: false);
+    return List<dynamic>.from(response);
+  }
+
+  Future<List<dynamic>> _fetchBannerRows() async =>
+      List<dynamic>.from(await SupabaseService.client.from('banners').select());
+
+  Future<List<dynamic>> _fetchBundleRows() async =>
+      (await BundleDealService.fetchBundles())
+          .map((bundle) => bundle.toJson())
+          .toList(growable: false);
+
+  Future<List<dynamic>> _fetchVideoAdRows() async =>
+      (await VideoAdService.fetchAds())
+          .map((ad) => ad.toJson())
+          .toList(growable: false);
+
+  Future<List<dynamic>> _fetchCategoryRows() async => List<dynamic>.from(
+    await SupabaseService.client.from('categories').select(),
+  );
+
+  Future<List<dynamic>> _fetchDefaultItemRows() async => List<dynamic>.from(
+    await SupabaseService.client
+        .from('items')
+        .select(
+          'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+          'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
+          'accordsEN, topNotes, topNotesEN, middleNotes, middleNotesEN, '
+          'baseNotes, baseNotesEN, accordPercentages, sillage, longevity, '
+          'isFeatured, item_properties(*)',
+        )
+        .order('isFeatured', ascending: false)
+        .order('id', ascending: false)
+        .limit(50),
+  );
+
+  Future<void> checkForUpdates({bool force = false}) async {
     if (isCheckingForUpdates.value) return;
     isCheckingForUpdates.value = true;
 
+    final storage = GetStorage();
+    final hasCache = _hasPersistedHomeCache(storage);
     try {
-      final storage = GetStorage();
-
-      // Fetch all active promotions (not expired)
-      try {
-        final promoRes = await SupabaseService.client
-            .from('promotions')
-            .select()
-            .or(
-              'expiry_date.is.null,expiry_date.gt.${DateTime.now().toUtc().toIso8601String()}',
-            )
-            .order('created_at', ascending: false);
-        final promoList = promoRes as List;
-        final freshPromotions = promoList
-            .map(
-              (e) =>
-                  PromotionModel.fromJson(Map<String, dynamic>.from(e as Map)),
-            )
-            .where((p) => !p.isExpired)
-            .toList();
-        final cachedPromotions = storage.read<List>(
-          AppConstants.kCachedPromotions,
-        );
-        if (jsonEncode(cachedPromotions) != jsonEncode(promoList) ||
-            activePromotions.isEmpty) {
-          activePromotions.value = freshPromotions;
-          await storage.write(AppConstants.kCachedPromotions, promoList);
+      final remoteVersions = await _fetchRemoteContentVersions();
+      final remoteVersion = remoteVersions?.data;
+      if (!force && hasCache) {
+        if (remoteVersion != null &&
+            remoteVersion == _contentVersion &&
+            remoteVersions?.media == _mediaVersion) {
+          _removeExpiredPromotions();
+          return;
         }
-      } catch (e) {
-        debugPrint('[HomeController] fetchPromotion error: $e');
-      }
-
-      // Fetch banners
-      final bannerRes = await SupabaseService.client.from('banners').select();
-      final freshBannersJson = bannerRes as List;
-
-      try {
-        final freshBundles = await BundleDealService.fetchBundles();
-        final freshBundlesJson = freshBundles
-            .map((bundle) => bundle.toJson())
-            .toList(growable: false);
-        final cachedBundles = storage.read<List>(
-          AppConstants.kCachedBundleDeals,
-        );
-        if (jsonEncode(cachedBundles) != jsonEncode(freshBundlesJson) ||
-            bundleDeals.isEmpty) {
-          bundleDeals.value = freshBundles;
-          await storage.write(
-            AppConstants.kCachedBundleDeals,
-            freshBundlesJson,
-          );
+        if (remoteVersion == null && _fallbackCacheIsFresh(storage)) {
+          _removeExpiredPromotions();
+          return;
         }
-      } catch (e, stackTrace) {
-        debugPrint('[HomeController] fetchBundles error: $e');
-        debugPrint('$stackTrace');
-      } finally {
-        isLoadingBundles.value = false;
       }
 
-      try {
-        videoAds.value = await VideoAdService.fetchAds();
-      } catch (e, stackTrace) {
-        debugPrint('[HomeController] fetchVideoAds error: $e');
-        debugPrint('$stackTrace');
-        videoAds.clear();
-      } finally {
-        isLoadingVideoAds.value = false;
-      }
+      final rows = await Future.wait<List<dynamic>>([
+        _fetchPromotionRows(),
+        _fetchBannerRows(),
+        _fetchBundleRows(),
+        _fetchVideoAdRows(),
+        _fetchCategoryRows(),
+        _fetchDefaultItemRows(),
+      ]);
+      final promotionRows = rows[0];
+      final bannerRows = rows[1];
+      final bundleRows = rows[2];
+      final videoAdRows = rows[3];
+      final categoryRows = rows[4];
+      final itemRows = rows[5];
 
-      // Fetch categories
-      List categoryRes;
-      try {
-        categoryRes = await SupabaseService.client.from('categories').select();
-      } catch (e1) {
-        debugPrint('[HomeController] Failed to fetch categories: $e1');
-        categoryRes = await SupabaseService.client.from('categories').select();
-      }
-      final freshCategoriesJson = categoryRes;
+      final versionsAfterFetch = await _fetchRemoteContentVersions();
+      final versionAfterFetch = versionsAfterFetch?.data;
+      final appliedVersion =
+          remoteVersion ?? versionAfterFetch ?? _contentVersion + 1;
+      final appliedMediaVersion =
+          remoteVersions?.media ??
+          versionsAfterFetch?.media ??
+          (_mediaVersion > 0 ? _mediaVersion : 1);
+      _contentVersion = appliedVersion;
+      _mediaVersion = appliedMediaVersion;
+      MediaCacheService.setContentVersion(appliedMediaVersion);
+      _itemQueryCache.clear();
+      _subCategoryCache.clear();
+      _itemRowsCache.clear();
 
-      // Fetch items (default landing list)
-      final itemRes = await SupabaseService.client
-          .from('items')
-          .select(
-            'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
-            'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
-            'accordsEN, isFeatured, item_properties(*)',
+      await Future.wait<void>([
+        storage.write(AppConstants.kCachedPromotions, promotionRows),
+        storage.write(AppConstants.kCachedBanners, bannerRows),
+        storage.write(AppConstants.kCachedBundleDeals, bundleRows),
+        storage.write(AppConstants.kCachedVideoAds, videoAdRows),
+        storage.write(AppConstants.kCachedCategories, categoryRows),
+        storage.write(AppConstants.kCachedItems, itemRows),
+        storage.write(AppConstants.kHomeContentVersion, appliedVersion),
+        storage.write(AppConstants.kMediaContentVersion, appliedMediaVersion),
+        storage.write(AppConstants.kHomeCacheSchema, _cacheSchema),
+        storage.write(
+          AppConstants.kHomeCacheUpdatedAt,
+          DateTime.now().toUtc().millisecondsSinceEpoch,
+        ),
+      ]);
+
+      activePromotions.value = promotionRows
+          .whereType<Map>()
+          .map((row) => PromotionModel.fromJson(Map<String, dynamic>.from(row)))
+          .where((promotion) => !promotion.isExpired)
+          .toList(growable: false);
+      banners.value = bannerRows
+          .whereType<Map>()
+          .map((row) => BannerModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      bundleDeals.value = bundleRows
+          .whereType<Map>()
+          .map(
+            (row) => BundleDealModel.fromJson(Map<String, dynamic>.from(row)),
           )
-          .order('isFeatured', ascending: false)
-          .order('id', ascending: false)
-          .limit(50);
-      final freshItemsJson = itemRes as List;
+          .toList(growable: false);
+      videoAds.value = videoAdRows
+          .whereType<Map>()
+          .map((row) => VideoAdModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      categories.value = categoryRows
+          .whereType<Map>()
+          .map((row) => CategoryModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
 
-      // Compare with cache
-      final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
-      final cachedCategories = storage.read<List>(
-        AppConstants.kCachedCategories,
-      );
-      final cachedItems = storage.read<List>(AppConstants.kCachedItems);
-
-      final bannersChanged =
-          jsonEncode(cachedBanners) != jsonEncode(freshBannersJson);
-      final categoriesChanged =
-          jsonEncode(cachedCategories) != jsonEncode(freshCategoriesJson);
-      final itemsChanged =
-          jsonEncode(cachedItems) != jsonEncode(freshItemsJson);
-
-      final hasChanges =
-          bannersChanged ||
-          categoriesChanged ||
-          itemsChanged ||
-          cachedBanners == null ||
-          cachedCategories == null ||
-          cachedItems == null ||
-          banners.isEmpty ||
-          categories.isEmpty ||
-          items.isEmpty;
-
-      if (hasChanges) {
-        // Save to cache
-        await storage.write(AppConstants.kCachedBanners, freshBannersJson);
-        await storage.write(
-          AppConstants.kCachedCategories,
-          freshCategoriesJson,
-        );
-        // Only update items cache if we are on the default view
-        if (selectedCategoryId.value == null &&
-            selectedSubCategoryId.value == null) {
-          await storage.write(AppConstants.kCachedItems, freshItemsJson);
-        }
-
-        // Apply new data to UI
-        banners.value = freshBannersJson
-            .map((e) => BannerModel.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-        categories.value = freshCategoriesJson
-            .map((e) => CategoryModel.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-
-        // Update default items if currently displaying default
-        if (selectedCategoryId.value == null &&
-            selectedSubCategoryId.value == null) {
-          items.value = _parseItems(freshItemsJson);
-          _applyFilters();
-        }
+      final defaultItems = _parseItems(itemRows);
+      _itemQueryCache['all'] = defaultItems;
+      if (selectedCategoryId.value == null &&
+          selectedSubCategoryId.value == null) {
+        items.value = defaultItems;
+        _applyFilters();
       }
-
-      // Reset loading states
-      isLoadingBanners.value = false;
-      isLoadingBundles.value = false;
-      isLoadingVideoAds.value = false;
-      isLoadingCategories.value = false;
-      isLoadingItems.value = false;
+      _schedulePromotionExpiry();
       hasItemsError.value = false;
 
       if (selectedCategoryId.value != null) {
-        final subCategoryResponse = await _fetchSubCategoriesForCategory(
-          selectedCategoryId.value!,
-        );
-        subCategories.value = subCategoryResponse
-            .map(
-              (e) => SubCategoryModel.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ),
-            )
-            .toList();
-
-        final selectedSubCategory = selectedSubCategoryId.value;
-        if (selectedSubCategory != null &&
-            !subCategories.any(
-              (subCategory) => subCategory.id == selectedSubCategory,
-            )) {
-          selectedSubCategoryId.value = null;
-        }
-
-        await _fetchItems();
+        await _loadSelectedCategoryAfterInvalidation();
       }
-    } catch (e, st) {
-      debugPrint('[HomeController] checkForUpdates error: $e');
-      debugPrint('[HomeController] stacktrace: $st');
-      if (items.isEmpty) {
-        hasItemsError.value = true;
+      if (versionAfterFetch != null && versionAfterFetch != appliedVersion) {
+        _scheduleVersionCheck(const Duration(milliseconds: 250));
       }
+    } catch (error, stackTrace) {
+      debugPrint('[HomeController] checkForUpdates error: $error');
+      debugPrint('[HomeController] stacktrace: $stackTrace');
+      if (items.isEmpty) hasItemsError.value = true;
+    } finally {
       isLoadingBanners.value = false;
       isLoadingBundles.value = false;
       isLoadingVideoAds.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
-    } finally {
       isCheckingForUpdates.value = false;
     }
+  }
+
+  void _subscribeToContentVersion() {
+    final channel = SupabaseService.client.channel('sora-home-content-version');
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'app_content_versions',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'content_key',
+            value: 'home',
+          ),
+          callback: (payload) {
+            final key = payload.newRecord['content_key'];
+            final version = (payload.newRecord['version'] as num?)?.toInt();
+            final changed = key == 'home'
+                ? version != _contentVersion
+                : key == 'home_media'
+                ? version != _mediaVersion
+                : false;
+            if (version != null && changed) {
+              _scheduleVersionCheck(const Duration(milliseconds: 200));
+            }
+          },
+        )
+        .subscribe();
+    _contentVersionChannel = channel;
+    _versionPollTimer = Timer.periodic(
+      _versionPollInterval,
+      (_) => _scheduleVersionCheck(Duration.zero),
+    );
+  }
+
+  void _scheduleVersionCheck(Duration delay) {
+    _refreshDebounce?.cancel();
+    _refreshDebounce = Timer(delay, () => unawaited(checkForUpdates()));
+  }
+
+  void _removeExpiredPromotions() {
+    activePromotions.removeWhere((promotion) => promotion.isExpired);
+    _schedulePromotionExpiry();
+  }
+
+  void _schedulePromotionExpiry() {
+    _promotionExpiryTimer?.cancel();
+    final now = DateTime.now();
+    final expiries =
+        activePromotions
+            .map((promotion) => promotion.expiryDate)
+            .whereType<DateTime>()
+            .where((expiry) => expiry.isAfter(now))
+            .toList(growable: false)
+          ..sort();
+    if (expiries.isEmpty) return;
+    _promotionExpiryTimer = Timer(
+      expiries.first.difference(now) + const Duration(seconds: 1),
+      _removeExpiredPromotions,
+    );
+  }
+
+  Future<void> _loadSelectedCategoryAfterInvalidation() async {
+    final categoryId = selectedCategoryId.value;
+    if (categoryId == null) return;
+    final rows = await _fetchSubCategoriesForCategory(categoryId);
+    final parsed = rows
+        .whereType<Map>()
+        .map((row) => SubCategoryModel.fromJson(Map<String, dynamic>.from(row)))
+        .toList(growable: false);
+    _subCategoryCache[categoryId] = parsed;
+    subCategories.value = parsed;
+
+    final subCategoryId = selectedSubCategoryId.value;
+    if (subCategoryId != null &&
+        !parsed.any((subCategory) => subCategory.id == subCategoryId)) {
+      selectedSubCategoryId.value = null;
+    }
+    await _fetchItems(force: true);
   }
 
   void _loadFromCache() {
@@ -327,11 +445,17 @@ class HomeController extends GetxController {
       inStockOnly.value =
           storage.read<bool>(AppConstants.kFilterInStock) ?? false;
 
+      _contentVersion =
+          storage.read<int>(AppConstants.kHomeContentVersion) ?? 0;
+      _mediaVersion = storage.read<int>(AppConstants.kMediaContentVersion) ?? 0;
+      MediaCacheService.setContentVersion(_mediaVersion);
+
       final cachedBanners = storage.read<List>(AppConstants.kCachedBanners);
       final cachedPromotions = storage.read<List>(
         AppConstants.kCachedPromotions,
       );
       final cachedBundles = storage.read<List>(AppConstants.kCachedBundleDeals);
+      final cachedVideoAds = storage.read<List>(AppConstants.kCachedVideoAds);
       final cachedCategories = storage.read<List>(
         AppConstants.kCachedCategories,
       );
@@ -351,6 +475,7 @@ class HomeController extends GetxController {
             )
             .where((promotion) => !promotion.isExpired)
             .toList();
+        _schedulePromotionExpiry();
       }
       if (cachedBundles != null) {
         bundleDeals.value = cachedBundles
@@ -361,6 +486,13 @@ class HomeController extends GetxController {
             .toList();
         isLoadingBundles.value = false;
       }
+      if (cachedVideoAds != null) {
+        videoAds.value = cachedVideoAds
+            .whereType<Map>()
+            .map((row) => VideoAdModel.fromJson(Map<String, dynamic>.from(row)))
+            .toList(growable: false);
+        isLoadingVideoAds.value = false;
+      }
       if (cachedCategories != null) {
         categories.value = cachedCategories
             .map((e) => CategoryModel.fromJson(Map<String, dynamic>.from(e)))
@@ -368,7 +500,9 @@ class HomeController extends GetxController {
         isLoadingCategories.value = false;
       }
       if (cachedItems != null) {
-        items.value = _parseItems(cachedItems);
+        final parsed = _parseItems(cachedItems);
+        _itemQueryCache['all'] = parsed;
+        items.value = parsed;
         _applyFilters();
         isLoadingItems.value = false;
       }
@@ -385,14 +519,22 @@ class HomeController extends GetxController {
       await _fetchItems();
       return;
     }
+    final cached = _subCategoryCache[catId];
+    if (cached != null) {
+      subCategories.value = cached;
+      await _fetchItems();
+      return;
+    }
     try {
       final response = await _fetchSubCategoriesForCategory(catId);
-      subCategories.value = response
+      final parsed = response
           .map(
             (e) =>
                 SubCategoryModel.fromJson(Map<String, dynamic>.from(e as Map)),
           )
           .toList();
+      _subCategoryCache[catId] = parsed;
+      subCategories.value = parsed;
     } catch (e) {
       debugPrint('[HomeController] fetchSubCategories error: $e');
       AppSnackbar.show(
@@ -405,7 +547,35 @@ class HomeController extends GetxController {
     await _fetchItems();
   }
 
-  Future<void> _fetchItems() async {
+  String get _itemQueryKey {
+    final subCategoryId = selectedSubCategoryId.value;
+    if (subCategoryId != null) return 'sub:$subCategoryId';
+    final categoryId = selectedCategoryId.value;
+    return categoryId == null ? 'all' : 'cat:$categoryId';
+  }
+
+  Map<String, dynamic>? cachedItemRow(int itemId) => _itemRowsCache[itemId];
+
+  void cacheItemRow(
+    Map<String, dynamic> itemRow,
+    List<Map<String, dynamic>> propertyRows,
+  ) {
+    final id = (itemRow['id'] as num?)?.toInt();
+    if (id == null || id <= 0) return;
+    _itemRowsCache[id] = {...itemRow, 'item_properties': propertyRows};
+  }
+
+  Future<void> _fetchItems({bool force = false}) async {
+    final cacheKey = _itemQueryKey;
+    final cached = _itemQueryCache[cacheKey];
+    if (!force && cached != null) {
+      items.value = cached;
+      hasItemsError.value = false;
+      isLoadingItems.value = false;
+      _applyFilters();
+      return;
+    }
+
     isLoadingItems.value = true;
     hasItemsError.value = false;
     try {
@@ -414,7 +584,9 @@ class HomeController extends GetxController {
           .select(
             'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
             'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
-            'accordsEN, isFeatured, item_properties(*)',
+            'accordsEN, topNotes, topNotesEN, middleNotes, middleNotesEN, '
+            'baseNotes, baseNotesEN, accordPercentages, sillage, longevity, '
+            'isFeatured, item_properties(*)',
           );
 
       if (selectedSubCategoryId.value != null) {
@@ -431,7 +603,9 @@ class HomeController extends GetxController {
           .order('id', ascending: false)
           .limit(50);
 
-      items.value = _parseItems(response as List);
+      final parsed = _parseItems(response as List);
+      _itemQueryCache[cacheKey] = parsed;
+      items.value = parsed;
     } catch (e) {
       debugPrint('[HomeController] fetchItems error: $e');
       items.value = [];
@@ -482,11 +656,6 @@ class HomeController extends GetxController {
 
   @override
   Future<void> refresh() async {
-    await checkForUpdates();
-
-    if (selectedCategoryId.value == null) {
-      subCategories.clear();
-      await _fetchItems();
-    }
+    await checkForUpdates(force: true);
   }
 }
