@@ -180,10 +180,18 @@ class _CartItemList extends StatelessWidget {
                 '${item.sizeMl} ml',
                 style: TextStyle(color: AppConstants.mediumBeige),
               ),
+              if (item.hasDiscount)
+                Text(
+                  '${AppConstants.currency} ${item.displayRegularPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
               Text(
                 '${AppConstants.currency} ${item.displayPrice.toStringAsFixed(2)}',
                 style: TextStyle(
-                  color: AppConstants.darkBeige,
+                  color: item.hasDiscount ? Colors.red : AppConstants.darkBeige,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -388,10 +396,12 @@ class _OrderSummary extends StatelessWidget {
                 ),
                 Text(
                   '${AppConstants.currency} '
-                  '${(controller.bundleSavings > 0 ? controller.regularTotalPrice : total).toStringAsFixed(2)}',
+                  '${(controller.bundleSavings > 0 || controller.itemDiscountSavings > 0 ? controller.regularTotalPrice : total).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    decoration: controller.bundleSavings > 0
+                    decoration:
+                        controller.bundleSavings > 0 ||
+                            controller.itemDiscountSavings > 0
                         ? TextDecoration.lineThrough
                         : null,
                   ),
@@ -409,6 +419,23 @@ class _OrderSummary extends StatelessWidget {
                     '${controller.bundleSavings.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Colors.green.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (controller.itemDiscountSavings > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('discount'.tr),
+                  Text(
+                    '- ${AppConstants.currency} '
+                    '${controller.itemDiscountSavings.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

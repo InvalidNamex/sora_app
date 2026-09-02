@@ -4,7 +4,7 @@ import 'supabase_service.dart';
 class VideoAdService {
   VideoAdService._();
 
-  static const _selectColumns = 'id, videoURL, isVertical, itemID';
+  static const _selectColumns = 'id, videoURL, bannerURL, isVertical, itemID';
 
   static Future<List<VideoAdModel>> fetchAds() async {
     final response = await SupabaseService.client
@@ -15,18 +15,20 @@ class VideoAdService {
     return (response as List)
         .whereType<Map>()
         .map((row) => VideoAdModel.fromJson(Map<String, dynamic>.from(row)))
-        .where((ad) => ad.videoUrl.isNotEmpty && ad.itemId > 0)
+        .where((ad) => (ad.hasVideo || ad.hasBanner) && ad.itemId > 0)
         .toList(growable: false);
   }
 
   static Future<VideoAdModel> saveAd({
     int? id,
     required String videoUrl,
+    required String bannerUrl,
     required bool isVertical,
     required int itemId,
   }) async {
     final payload = {
       'videoURL': videoUrl.trim(),
+      'bannerURL': bannerUrl.trim().isEmpty ? null : bannerUrl.trim(),
       'isVertical': isVertical,
       'itemID': itemId,
     };

@@ -15,11 +15,40 @@ class AffiliateManagementController extends GetxController {
   final pendingPayouts = <PayoutRequestModel>[].obs;
   final loadingPayouts = true.obs;
   final reviewingId = Rxn<int>();
+  final applicationSearch = ''.obs;
+  final payoutSearch = ''.obs;
 
   // ── Users tab ────────────────────────────────────────────────────────────
   final searchResults = <AffiliateAdminUserSummary>[].obs;
   final loadingUsers = true.obs;
   Timer? _debounce;
+
+  List<AffiliateApplicationModel> get filteredApplications =>
+      pendingApplications
+          .where((application) {
+            final query = applicationSearch.value.trim().toLowerCase();
+            if (query.isEmpty) return true;
+            return [
+              application.userName,
+              application.userPhone,
+              application.preferredCode,
+              application.message,
+            ].any((value) => value.toLowerCase().contains(query));
+          })
+          .toList(growable: false);
+
+  List<PayoutRequestModel> get filteredPayouts => pendingPayouts
+      .where((payout) {
+        final query = payoutSearch.value.trim().toLowerCase();
+        if (query.isEmpty) return true;
+        return [
+          payout.affiliateName,
+          payout.affiliatePhone,
+          payout.payoutAccount ?? '',
+          payout.paymentReference ?? '',
+        ].any((value) => value.toLowerCase().contains(query));
+      })
+      .toList(growable: false);
 
   @override
   void onReady() {

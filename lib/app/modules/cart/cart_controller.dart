@@ -32,9 +32,19 @@ class CartController extends GetxController {
       cartItems.fold(0.0, (sum, e) => sum + e.subtotal) +
       bundleItems.fold(0.0, (sum, e) => sum + e.subtotal);
   double get regularTotalPrice =>
-      cartItems.fold(0.0, (sum, e) => sum + e.subtotal) +
+      cartItems.fold(0.0, (sum, e) => sum + e.regularPrice * e.quantity) +
       bundleItems.fold(0.0, (sum, e) => sum + e.regularSubtotal);
-  double get bundleSavings => regularTotalPrice - totalPrice;
+  double get bundleSavings => bundleItems.fold(
+    0.0,
+    (sum, e) => sum + (e.bundle.regularPrice - e.bundle.dealPrice) * e.quantity,
+  );
+  double get itemDiscountSavings => cartItems.fold(
+    0.0,
+    (sum, e) => sum + (e.regularPrice - e.price) * e.quantity,
+  );
+  double get promoEligibleTotal => cartItems
+      .where((item) => !item.hasDiscount)
+      .fold(0.0, (sum, item) => sum + item.subtotal);
   bool get isEmpty => cartItems.isEmpty && bundleItems.isEmpty;
 
   @override
@@ -85,9 +95,9 @@ class CartController extends GetxController {
             .from('cart')
             .select(
               'id, itemID, quantity, '
-              'item_properties!propertyID(id, itemID, size, image, price), '
+              'item_properties!propertyID(id, itemID, size, image, price, discountPercentage), '
               'items(itemName, itemNameEN, '
-              'item_properties(id, image, price, isDefault, inStock))',
+              'item_properties(id, image, price, discountPercentage, isDefault, inStock))',
             )
             .eq('userID', userId)
             .not('propertyID', 'is', null),
@@ -213,8 +223,11 @@ class CartController extends GetxController {
           image: prop.image,
           displayImage: display.image,
           sizeMl: prop.sizeMl,
-          price: prop.price,
-          displayPrice: display.price,
+          regularPrice: prop.price,
+          price: prop.salePrice,
+          discountPercentage: prop.discountPercentage,
+          displayPrice: display.salePrice,
+          displayRegularPrice: display.price,
           quantity: quantity,
         ),
       );

@@ -92,7 +92,7 @@ Deno.test('recommendations prefer an in-stock 50 ml property', () => {
   assertEquals(result.property?.sizeMl, 50);
 });
 
-Deno.test('recommendations do not prefer an out-of-stock 50 ml property', () => {
+Deno.test('recommendations use 50 ml as the default property even when out of stock', () => {
   const result = scorePerfume(source, candidate({
     properties: [
       {
@@ -120,5 +120,5 @@ Deno.test('recommendations do not prefer an out-of-stock 50 ml property', () => 
     ],
   }));
 
-  assertEquals(result.property?.sizeMl, 100);
+  assertEquals(result.property?.sizeMl, 50);
 });

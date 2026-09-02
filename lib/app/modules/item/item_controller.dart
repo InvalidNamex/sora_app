@@ -33,7 +33,7 @@ class ItemController extends GetxController {
       properties.isNotEmpty ? properties[selectedPropertyIndex.value] : null;
 
   ItemPropertyModel? get defaultProperty =>
-      properties.firstWhereOrNull((p) => p.isDefault);
+      ItemPropertyModel.preferred(properties);
 
   CartItemModel? get selectedCartItem {
     final propertyId = selectedProperty?.id;
@@ -92,7 +92,14 @@ class ItemController extends GetxController {
         : properties.indexWhere(
             (property) => property.id == selectedPropertyId,
           );
-    selectedPropertyIndex.value = restoredIndex >= 0 ? restoredIndex : 0;
+    if (restoredIndex >= 0) {
+      selectedPropertyIndex.value = restoredIndex;
+    } else {
+      final preferred = ItemPropertyModel.preferred(properties);
+      selectedPropertyIndex.value = preferred == null
+          ? 0
+          : properties.indexOf(preferred);
+    }
   }
 
   Future<void> _fetchItem({bool showLoading = true}) async {

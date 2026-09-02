@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../modules/auth/auth_controller.dart';
+import '../../modules/admin/notifications/admin_notification_inbox_controller.dart';
 import '../../modules/cart/cart_controller.dart';
 import '../../modules/history/history_controller.dart';
 import '../../modules/home/home_controller.dart';
@@ -21,6 +22,7 @@ class AppBinding {
     Get.put(WishlistController(), permanent: true);
     Get.put(DeepLinkService(), permanent: true);
     Get.put(NotificationService(), permanent: true);
+    Get.put(AdminNotificationInboxController(), permanent: true);
     Get.put(InAppMessagingService(), permanent: true);
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
     Get.lazyPut<HistoryController>(() => HistoryController(), fenix: true);

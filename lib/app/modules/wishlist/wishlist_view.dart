@@ -112,14 +112,35 @@ class _WishlistCard extends StatelessWidget {
                           ),
                         ),
                         if (liked.price != null)
-                          Text(
-                            '${AppConstants.currency} ${liked.price!.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: AppConstants.darkBeige,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
+                          liked.hasDiscount
+                              ? Row(
+                                  children: [
+                                    Text(
+                                      '${AppConstants.currency} ${liked.regularPrice!.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '${AppConstants.currency} ${liked.price!.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  '${AppConstants.currency} ${liked.price!.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: AppConstants.darkBeige,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                       ],
                     ),
                   ),

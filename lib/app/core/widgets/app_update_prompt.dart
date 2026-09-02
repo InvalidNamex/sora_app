@@ -52,18 +52,6 @@ class _AppUpdatePromptState extends State<AppUpdatePrompt> {
     });
   }
 
-  @override
-  void didUpdateWidget(covariant AppUpdatePrompt oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_supportsStoreLookup ||
-        oldWidget.languageCode == widget.languageCode) {
-      return;
-    }
-
-    _upgrader?.dispose();
-    _createUpgrader();
-  }
-
   void _createUpgrader() {
     _upgrader = Upgrader(
       // Apple's lookup API otherwise defaults to the US storefront. Sora's
@@ -93,12 +81,14 @@ class _AppUpdatePromptState extends State<AppUpdatePrompt> {
     if (!_ready || upgrader == null) return widget.child;
 
     return UpgradeAlert(
-      key: ValueKey(widget.languageCode),
       upgrader: upgrader,
       barrierDismissible: false,
       showIgnore: false,
       showLater: true,
-      showReleaseNotes: true,
+      // Store release notes can be several hundred pixels tall on a phone in
+      // Arabic. The package's dialog does not always pass its scroll constraint
+      // down on compact viewports, which can overflow the action area.
+      showReleaseNotes: false,
       child: widget.child,
     );
   }

@@ -35,6 +35,7 @@ class CheckoutController extends GetxController {
   bool _hasPreloadedPhone = false;
 
   double get cartTotal => CartController.to.totalPrice;
+  double get promoEligibleTotal => CartController.to.promoEligibleTotal;
   double get finalTotal =>
       (cartTotal - discount.value).clamp(0, double.infinity);
   bool get hasBundleDeal => CartController.to.bundleItems.isNotEmpty;
@@ -239,12 +240,24 @@ class CheckoutController extends GetxController {
       discount.value = 0;
       return true;
     }
+    if (promoEligibleTotal <= 0) {
+      appliedPromo.value = null;
+      discount.value = 0;
+      if (showFeedback) {
+        AppSnackbar.show(
+          'error'.tr,
+          'no_additional_discount'.tr,
+          type: AppSnackbarType.error,
+        );
+      }
+      return false;
+    }
 
     promoLoading.value = true;
     try {
       final validation = await AffiliateProgramService.validateCode(
         code: code,
-        subtotal: cartTotal,
+        subtotal: promoEligibleTotal,
       );
       if (!validation.valid) {
         appliedPromo.value = null;

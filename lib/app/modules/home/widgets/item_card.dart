@@ -13,35 +13,41 @@ import '../../../routes/app_pages.dart';
 /// A single item card for the staggered product grid.
 /// When [entry] is null, renders a shimmer skeleton.
 class ItemCard extends StatelessWidget {
-  const ItemCard({super.key, required this.entry});
+  const ItemCard({super.key, required this.entry, this.heroTag});
 
   final ItemWithProperty? entry;
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
     if (entry == null) return const _ShimmerCard();
-    return _LiveCard(entry: entry!);
+    return _LiveCard(entry: entry!, heroTag: heroTag);
   }
 }
 
 // ── Live card ────────────────────────────────────────────────────────────────
 
 class _LiveCard extends StatelessWidget {
-  const _LiveCard({required this.entry});
+  const _LiveCard({required this.entry, this.heroTag});
 
   final ItemWithProperty entry;
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
     final prop = entry.primaryProperty;
-    final heroTag = 'hero_item_${entry.item.id}';
+    final resolvedHeroTag = heroTag ?? 'hero_item_${entry.item.id}';
     final ctrl = HomeController.to;
 
     Widget cardBody = Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: _CardBody(entry: entry, prop: prop, heroTag: heroTag),
+          child: _CardBody(
+            entry: entry,
+            prop: prop,
+            heroTag: resolvedHeroTag,
+          ),
         ),
         // Wishlist button overlay
         Obx(() {
@@ -64,12 +70,20 @@ class _LiveCard extends StatelessWidget {
                 ],
               ),
               child: IconButton(
+
                 padding: EdgeInsets.zero,
-                icon: Icon(
-                  isLiked ? Icons.favorite : Icons.favorite_border,
-                  size: 18,
-                  color: isLiked ? Colors.brown : Colors.black87,
+                icon:CircleAvatar(
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surface.withAlpha(150),
+                radius: 20,
+                child: Icon(
+                  isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: isLiked ? AppConstants.darkBeige : null,
                 ),
+              ),
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   WishlistController.to.toggleLike(entry.item.id);
@@ -78,10 +92,16 @@ class _LiveCard extends StatelessWidget {
             ),
           );
         }),
+        if (prop?.hasDiscount == true)
+          PositionedDirectional(
+            top: 10,
+            start: 10,
+            child: _DiscountBadge(percentage: prop!.discountPercentage),
+          ),
         // Featured Badge
         if (entry.item.isFeatured)
           PositionedDirectional(
-            top: 10,
+            top: prop?.hasDiscount == true ? 48 : 10,
             start: 10,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -131,7 +151,11 @@ class _LiveCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              _CardBody(entry: entry, prop: prop, heroTag: heroTag),
+              _CardBody(
+                entry: entry,
+                prop: prop,
+                heroTag: resolvedHeroTag,
+              ),
               // Still show wishlist icon on out of stock items
               Obx(() {
                 final isLiked = WishlistController.to.isLiked(entry.item.id);
@@ -167,6 +191,12 @@ class _LiveCard extends StatelessWidget {
                   ),
                 );
               }),
+              if (prop?.hasDiscount == true)
+                PositionedDirectional(
+                  top: 10,
+                  start: 10,
+                  child: _DiscountBadge(percentage: prop!.discountPercentage),
+                ),
             ],
           ),
         ),
@@ -201,7 +231,7 @@ class _LiveCard extends StatelessWidget {
               HapticFeedback.mediumImpact();
               Get.toNamed(
                 Routes.itemPath(entry.item.id),
-                arguments: {'heroTag': heroTag},
+                arguments: {'heroTag': resolvedHeroTag},
               );
             },
             child: cardBody,
@@ -293,19 +323,84 @@ class _CardBody extends StatelessWidget {
                 ),
                 if (prop != null) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    '${AppConstants.currency} ${prop!.price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: AppConstants.darkBeige,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
+                  _CardPrice(property: prop!),
                 ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CardPrice extends StatelessWidget {
+  const _CardPrice({required this.property});
+
+  final ItemPropertyModel property;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!property.hasDiscount) {
+      return Text(
+        '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+        style: const TextStyle(
+          color: AppConstants.darkBeige,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      );
+    }
+    return Wrap(
+      spacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+          style: TextStyle(
+            color:              Colors.red,
+
+            
+            fontSize: 11,
+            decoration: TextDecoration.lineThrough,
+          ),
+        ),
+        Text(
+          '${AppConstants.currency} ${property.salePrice.toStringAsFixed(2)}',
+          style:  TextStyle(
+            fontWeight: FontWeight.w800,
+
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiscountBadge extends StatelessWidget {
+  const _DiscountBadge({required this.percentage});
+
+  final double percentage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.red.shade700,
+        borderRadius: const BorderRadiusDirectional.only(
+          topStart: Radius.circular(16),
+          bottomEnd: Radius.circular(16),
+        ),
+      ),
+      child: Text(
+        '${percentage.toStringAsFixed(0)}% ${'off'.tr}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

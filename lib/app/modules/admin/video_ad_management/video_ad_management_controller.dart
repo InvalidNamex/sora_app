@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/item_model.dart';
 import '../../../core/models/video_ad_model.dart';
@@ -17,6 +20,10 @@ class VideoAdManagementController extends GetxController {
   final editingId = Rxn<int>();
   final selectedItemId = Rxn<int>();
   final isVertical = true.obs;
+  final pickedBannerName = ''.obs;
+  final pickedBannerBytes = Rxn<Uint8List>();
+  final existingBannerUrl = ''.obs;
+  final clearExistingBanner = false.obs;
 
   final urlCtrl = TextEditingController();
 
@@ -106,6 +113,10 @@ class VideoAdManagementController extends GetxController {
     urlCtrl.clear();
     isVertical.value = true;
     selectedItemId.value = null;
+    existingBannerUrl.value = '';
+    pickedBannerName.value = '';
+    pickedBannerBytes.value = null;
+    clearExistingBanner.value = false;
   }
 
   void beginEdit(VideoAdModel ad) {
@@ -113,20 +124,47 @@ class VideoAdManagementController extends GetxController {
     urlCtrl.text = ad.videoUrl;
     isVertical.value = ad.isVertical;
     selectedItemId.value = ad.itemId;
+    existingBannerUrl.value = ad.bannerUrl;
+    pickedBannerName.value = '';
+    pickedBannerBytes.value = null;
+    clearExistingBanner.value = false;
+  }
+
+  Future<void> pickBanner() async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 92,
+        maxWidth: 2400,
+      );
+      if (image == null) return;
+      pickedBannerName.value = image.name;
+      pickedBannerBytes.value = await image.readAsBytes();
+      clearExistingBanner.value = false;
+    } catch (e) {
+      debugPrint('[VideoAdManagementController] pickBanner error: $e');
+      AppSnackbar.show(
+        'Error',
+        'Failed to select banner',
+        type: AppSnackbarType.error,
+      );
+    }
   }
 
   Future<bool> save() async {
     final url = urlCtrl.text.trim();
     final itemId = selectedItemId.value;
-    final parsed = Uri.tryParse(url);
-    if (url.isEmpty ||
-        parsed == null ||
-        !parsed.hasScheme ||
+    final currentBannerUrl = clearExistingBanner.value
+        ? ''
+        : existingBannerUrl.value;
+    final hasBanner =
+        pickedBannerBytes.value != null || currentBannerUrl.isNotEmpty;
+    if ((url.isEmpty && !hasBanner) ||
         itemId == null ||
         itemId <= 0) {
       AppSnackbar.show(
         'Error',
-        'Add a valid video URL and product',
+        'Add a video URL or banner and product',
         type: AppSnackbarType.error,
       );
       return false;
@@ -134,9 +172,30 @@ class VideoAdManagementController extends GetxController {
 
     isSaving.value = true;
     try {
+      var bannerUrl = currentBannerUrl;
+      final bytes = pickedBannerBytes.value;
+      if (bytes != null) {
+        final extension = _safeExtension(pickedBannerName.value);
+        final path = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+        await SupabaseService.client.storage
+            .from('ad_banners')
+            .uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(
+                contentType: _contentType(extension),
+                cacheControl: '31536000',
+                upsert: true,
+              ),
+            );
+        bannerUrl = SupabaseService.client.storage
+            .from('ad_banners')
+            .getPublicUrl(path);
+      }
       await VideoAdService.saveAd(
         id: editingId.value,
         videoUrl: url,
+        bannerUrl: bannerUrl,
         isVertical: isVertical.value,
         itemId: itemId,
       );
@@ -159,6 +218,19 @@ class VideoAdManagementController extends GetxController {
       isSaving.value = false;
     }
   }
+
+  String _safeExtension(String name) {
+    final extension = name.split('.').last.toLowerCase();
+    return {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)
+        ? extension
+        : 'jpg';
+  }
+
+  String _contentType(String extension) => switch (extension) {
+    'png' => 'image/png',
+    'webp' => 'image/webp',
+    _ => 'image/jpeg',
+  };
 
   Future<void> deleteAd(VideoAdModel ad) async {
     try {

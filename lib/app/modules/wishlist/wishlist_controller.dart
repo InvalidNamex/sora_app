@@ -48,7 +48,7 @@ class WishlistController extends GetxController {
       final response = await SupabaseService.client
           .from('liked_items')
           .select(
-            'id, itemID, items(id, itemName, itemNameEN, item_properties(id, image, price, inStock, isDefault, size))',
+            'id, itemID, items(id, itemName, itemNameEN, item_properties(id, image, price, discountPercentage, inStock, isDefault, size))',
           )
           .eq('userID', userId);
       likedItems.value = (response as List)

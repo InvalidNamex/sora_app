@@ -629,6 +629,14 @@ class _OrderSummaryCard extends StatelessWidget {
                     '${CartController.to.bundleSavings.toStringAsFixed(2)}',
                 valueColor: Colors.green.shade700,
               ),
+            if (CartController.to.itemDiscountSavings > 0)
+              _SummaryRow(
+                label: 'discount'.tr,
+                value:
+                    '- ${AppConstants.currency} '
+                    '${CartController.to.itemDiscountSavings.toStringAsFixed(2)}',
+                valueColor: Colors.red.shade700,
+              ),
             if (c.discount.value > 0)
               _SummaryRow(
                 label: 'discount'.tr,
@@ -789,15 +797,35 @@ class _CheckoutCartItemRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${item.sizeMl} ml · ${AppConstants.currency} '
-                  '${item.price.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.65),
-                    fontSize: 12,
-                  ),
+                Row(
+                  children: [
+                    Text('${item.sizeMl} ml · '),
+                    if (item.hasDiscount) ...[
+                      Text(
+                        '${AppConstants.currency} ${item.regularPrice.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.45),
+                          fontSize: 11,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      '${AppConstants.currency} ${item.price.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: item.hasDiscount
+                            ? Colors.red.shade700
+                            : Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.65),
+                        fontSize: 12,
+                        fontWeight: item.hasDiscount ? FontWeight.w700 : null,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 _CheckoutQuantityControl(item: item, c: c),

@@ -3,38 +3,34 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/models/banner_model.dart';
-import '../../core/models/video_ad_model.dart';
 import '../../core/utils/responsive.dart';
 import '../../modules/cart/cart_controller.dart';
+import '../../modules/admin/notifications/admin_notification_inbox_controller.dart';
 import '../../modules/navigation/nav_controller.dart';
 import '../../global_widgets/network_image_with_placeholder.dart';
 import '../../routes/app_pages.dart';
 import 'home_controller.dart';
 import 'widgets/banner_carousel.dart';
 import 'widgets/bundle_deal_carousel.dart';
-import 'widgets/category_strip.dart';
-import 'widgets/item_grid.dart';
-import 'widgets/video_ad_section.dart';
+import 'widgets/home_sections.dart';
 
 class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
   _HomeSearchDelegate(this.controller);
 
   final HomeController controller;
+  Future<List<ItemWithProperty>>? _searchFuture;
+  String _searchFutureQuery = '';
 
-  List<ItemWithProperty> _results(String rawQuery) {
-    final normalizedQuery = rawQuery.trim().toLowerCase();
+  Future<List<ItemWithProperty>> _results(String rawQuery) {
+    final normalizedQuery = rawQuery.trim();
     if (normalizedQuery.isEmpty) {
-      return controller.displayItems.toList();
+      return Future.value(controller.displayItems.toList());
     }
-
-    return controller.displayItems.where((entry) {
-      final itemName = entry.item.itemName.toLowerCase();
-      final brandName = entry.item.brandName.toLowerCase();
-      final itemDescription = entry.item.itemDescription.toLowerCase();
-      return itemName.contains(normalizedQuery) ||
-          brandName.contains(normalizedQuery) ||
-          itemDescription.contains(normalizedQuery);
-    }).toList();
+    if (_searchFuture == null || _searchFutureQuery != normalizedQuery) {
+      _searchFutureQuery = normalizedQuery;
+      _searchFuture = controller.searchItems(normalizedQuery);
+    }
+    return _searchFuture!;
   }
 
   Widget _buildResultsList(
@@ -44,7 +40,7 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
     if (results.isEmpty) {
       return Center(
         child: Text(
-          'No matching items',
+          'no_matching_items'.tr,
           style: Theme.of(context).textTheme.bodyLarge,
         ),
       );
@@ -88,7 +84,7 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
             [
               if (entry.item.brandName.isNotEmpty) entry.item.brandName,
               if (prop != null)
-                '${AppConstants.currency} ${prop.price.toStringAsFixed(2)}',
+                '${AppConstants.currency} ${(prop.hasDiscount ? prop.salePrice : prop.price).toStringAsFixed(2)}',
             ].join(' • '),
           ),
           trailing: entry.item.isFeatured
@@ -110,8 +106,23 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
     );
   }
 
+  Widget _buildSearchContent(BuildContext context) {
+    return FutureBuilder<List<ItemWithProperty>>(
+      future: _results(query),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('search_failed'.tr));
+        }
+        return _buildResultsList(context, snapshot.data ?? const []);
+      },
+    );
+  }
+
   @override
-  String get searchFieldLabel => 'Search items';
+  String get searchFieldLabel => 'search_items'.tr;
 
   @override
   List<Widget>? buildActions(BuildContext context) {
@@ -131,12 +142,12 @@ class _HomeSearchDelegate extends SearchDelegate<ItemWithProperty?> {
 
   @override
   Widget buildResults(BuildContext context) {
-    return _buildResultsList(context, _results(query));
+    return _buildSearchContent(context);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return _buildResultsList(context, _results(query));
+    return _buildSearchContent(context);
   }
 }
 
@@ -195,6 +206,7 @@ class HomeView extends GetView<HomeController> {
               ),
               centerTitle: true,
               actions: [
+                const _AdminNotificationButton(),
                 IconButton(
                   icon: const Icon(Icons.search_outlined),
                   onPressed: () => showSearch<ItemWithProperty?>(
@@ -221,35 +233,25 @@ class HomeView extends GetView<HomeController> {
               automaticallyImplyLeading: false,
             ),
 
-          // ── Collapsing hero: banner + video ad ───────────────────────────
+          // ── Collapsing hero: banner ───────────────────────────────────────
           Obx(() {
-            final ads = controller.videoAds;
-            final selectedAd = Responsive.isMobileOrTablet(context)
-                ? ads.firstWhereOrNull((ad) => ad.isVertical)
-                : ads.firstWhereOrNull((ad) => !ad.isVertical);
-            final showAd =
-                controller.isLoadingVideoAds.value || selectedAd != null;
             final showBanners =
                 controller.isLoadingBanners.value ||
                 controller.banners.isNotEmpty;
 
-            if (!showAd && !showBanners) {
+            if (!showBanners) {
               return const SliverToBoxAdapter(child: SizedBox.shrink());
             }
 
-            final bannerHeight = showBanners ? 180 : 0.0;
-            final adHeight = _videoAdHeight(context, selectedAd?.isVertical);
-            final double height = bannerHeight + (showAd ? adHeight : 0.0);
+            final bannerHeight = showBanners ? 180.0 : 0.0;
 
             return SliverPersistentHeader(
               pinned: false,
               delegate: _CollapsingHeroDelegate(
-                maxHeight: height,
+                maxHeight: bannerHeight,
                 child: _TopHeroSection(
                   isLoadingBanners: controller.isLoadingBanners.value,
                   banners: controller.banners,
-                  isLoadingVideoAds: controller.isLoadingVideoAds.value,
-                  videoAd: selectedAd,
                 ),
               ),
             );
@@ -303,36 +305,15 @@ class HomeView extends GetView<HomeController> {
             }),
           ),
 
-          // ── Category & sub-category strip ──────────────────────────────────
+          // ── Curated, admin-configured product sections ──────────────────────
           SliverToBoxAdapter(
-            child: Obx(
-              () => CategoryStrip(
-                categories: controller.categories.value,
-                subCategories: controller.subCategories.value,
-                selectedCategoryId: controller.selectedCategoryId.value,
-                selectedSubCategoryId: controller.selectedSubCategoryId.value,
-                onCategoryTap: controller.selectCategory,
-                onSubCategoryTap: controller.selectSubCategory,
-              ),
-            ),
+            child: HomeSections(onBrowseAll: () => Get.toNamed(Routes.catalog)),
           ),
-
-          // ── Product grid ───────────────────────────────────────────────────
-          const SliverToBoxAdapter(child: ItemGrid()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
-  }
-
-  double _videoAdHeight(BuildContext context, bool? isVertical) {
-    if (isVertical == null) return 168;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final maxWidth = isVertical ? 380.0 : 1100.0;
-    final width = (screenWidth - 32).clamp(0.0, maxWidth);
-    final aspectRatio = isVertical ? 9 / 16 : 16 / 6;
-    return (width / aspectRatio) + 20;
   }
 }
 
@@ -340,18 +321,13 @@ class _TopHeroSection extends StatelessWidget {
   const _TopHeroSection({
     required this.isLoadingBanners,
     required this.banners,
-    required this.isLoadingVideoAds,
-    required this.videoAd,
   });
 
   final bool isLoadingBanners;
   final List<BannerModel> banners;
-  final bool isLoadingVideoAds;
-  final VideoAdModel? videoAd;
 
   @override
   Widget build(BuildContext context) {
-    final ad = videoAd;
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: SingleChildScrollView(
@@ -368,22 +344,33 @@ class _TopHeroSection extends StatelessWidget {
               else
                 BannerCarousel(banners: banners),
             ],
-            if (isLoadingVideoAds)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: AspectRatio(
-                  aspectRatio: 16 / 6,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: AppConstants.lightBeige),
-                  ),
-                ),
-              )
-            else if (ad != null)
-              VideoAdSection(ad: ad),
           ],
         ),
       ),
     );
+  }
+}
+
+class _AdminNotificationButton extends StatelessWidget {
+  const _AdminNotificationButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inbox = AdminNotificationInboxController.to;
+    return Obx(() {
+      if (!inbox.isAdmin) return const SizedBox.shrink();
+      final unread = inbox.unreadCount;
+      return IconButton(
+        tooltip: 'Admin notifications',
+        icon: Badge.count(
+          count: unread,
+          isLabelVisible: unread > 0,
+          backgroundColor: Colors.redAccent,
+          child: const Icon(Icons.notifications_outlined),
+        ),
+        onPressed: () => Get.toNamed(Routes.adminNotifications),
+      );
+    });
   }
 }
 

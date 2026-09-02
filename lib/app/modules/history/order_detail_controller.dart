@@ -4,6 +4,9 @@ import '../../core/models/order_detail_model.dart';
 import '../../core/models/order_master_model.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/order_feedback_service.dart';
+import '../../core/models/return_request_model.dart';
+import '../../core/services/return_request_service.dart';
+import '../auth/auth_controller.dart';
 
 class OrderDetailController extends GetxController {
   late final int orderId;
@@ -12,6 +15,7 @@ class OrderDetailController extends GetxController {
   final isLoading = true.obs;
   final hasError = false.obs;
   final hasReview = false.obs;
+  final returnRequests = <ReturnRequestModel>[].obs;
 
   @override
   void onInit() {
@@ -49,6 +53,7 @@ class OrderDetailController extends GetxController {
       details.value = (detailResp as List)
           .map((e) => OrderDetailModel.fromJson(e as Map<String, dynamic>))
           .toList();
+      returnRequests.value = await ReturnRequestService.forOrder(orderId);
       if (orderMaster.value?.orderStatus == 'Delivered') {
         hasReview.value =
             await OrderFeedbackService.fetchForOrder(orderId) != null;
@@ -61,5 +66,38 @@ class OrderDetailController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  ReturnRequestModel? returnFor(int detailId) {
+    for (final request in returnRequests) {
+      if (request.orderDetailId == detailId && request.status != 'Cancelled')
+        return request;
+    }
+    return null;
+  }
+
+  Future<void> submitReturn({
+    required int detailId,
+    required String name,
+    required String phone,
+    required bool whatsapp,
+    required String reason,
+  }) async {
+    final user = AuthController.to.currentUser.value;
+    if (user == null) return;
+    if (user.name.trim().isEmpty) await AuthController.to.updateName(name);
+    if (user.phone.trim().isEmpty) {
+      await AuthController.to.updatePhoneNumbers(phone: phone);
+    }
+    await ReturnRequestService.create(
+      orderId: orderId,
+      detailId: detailId,
+      userId: user.id,
+      name: name,
+      phone: phone,
+      hasWhatsapp: whatsapp,
+      reason: reason,
+    );
+    await fetchDetails();
   }
 }

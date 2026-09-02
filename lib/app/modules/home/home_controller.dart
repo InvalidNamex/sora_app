@@ -11,6 +11,7 @@ import '../../core/models/bundle_deal_model.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/item_model.dart';
 import '../../core/models/item_property_model.dart';
+import '../../core/models/home_section_model.dart';
 import '../../core/models/promotion_model.dart';
 import '../../core/models/sub_category_model.dart';
 import '../../core/models/video_ad_model.dart';
@@ -24,20 +25,22 @@ import '../../core/utils/app_snackbar.dart';
 class ItemWithProperty {
   final ItemModel item;
   final ItemPropertyModel? primaryProperty;
+  final bool hasInStockProperty;
 
-  const ItemWithProperty({required this.item, this.primaryProperty});
+  const ItemWithProperty({
+    required this.item,
+    this.primaryProperty,
+    this.hasInStockProperty = false,
+  });
 
   /// True only when the item has properties and all are out of stock.
-  bool get isOutOfStock {
-    final p = primaryProperty;
-    return p == null || !p.inStock;
-  }
+  bool get isOutOfStock => !hasInStockProperty;
 }
 
 class HomeController extends GetxController with WidgetsBindingObserver {
   static HomeController get to => Get.find();
 
-  static const _cacheSchema = 2;
+  static const _cacheSchema = 4;
   static const _fallbackRefreshAge = Duration(minutes: 15);
   static const _versionPollInterval = Duration(minutes: 5);
 
@@ -49,18 +52,21 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   final displayItems = <ItemWithProperty>[].obs;
   final activePromotions = <PromotionModel>[].obs;
   final videoAds = <VideoAdModel>[].obs;
+  final homeSections = <HomeSectionModel>[].obs;
+  final sectionItems = <int, List<ItemWithProperty>>{}.obs;
 
   final isLoadingBanners = true.obs;
   final isLoadingBundles = true.obs;
   final isLoadingVideoAds = true.obs;
   final isLoadingCategories = true.obs;
   final isLoadingItems = true.obs;
+  final isLoadingHomeSections = true.obs;
   final hasItemsError = false.obs;
   final isCheckingForUpdates = false.obs;
 
   final selectedCategoryId = Rxn<int>();
   final selectedSubCategoryId = Rxn<int>();
-  final genderFilter = Rxn<int>(); // null=All, 0=Unisex, 1=Men, 2=Women
+  final genderFilters = <int>{0, 1, 2}.obs;
   final inStockOnly = false.obs;
   final hoveredItemId = Rxn<int>();
   final pressedItemId = Rxn<int>();
@@ -89,7 +95,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     unawaited(checkForUpdates());
     ever(selectedCategoryId, (_) => _onCategoryChanged());
     ever(selectedSubCategoryId, (_) => _fetchItems());
-    ever(genderFilter, (_) => _applyFilters());
+    ever<Set<int>>(genderFilters, (_) => _applyFilters());
     ever<bool>(inStockOnly, (_) => _applyFilters());
   }
 
@@ -125,17 +131,17 @@ class HomeController extends GetxController with WidgetsBindingObserver {
               ),
             )
             .toList();
-        final primary = props?.fold<ItemPropertyModel?>(
-          null,
-          (largest, property) =>
-              largest == null ||
-                  property.sizeMl > largest.sizeMl ||
-                  (property.sizeMl == largest.sizeMl &&
-                      property.id < largest.id)
-              ? property
-              : largest,
+        final primary = props == null
+            ? null
+            : ItemPropertyModel.preferred(props);
+        parsed.add(
+          ItemWithProperty(
+            item: item,
+            primaryProperty: primary,
+            hasInStockProperty:
+                props?.any((property) => property.inStock) ?? false,
+          ),
         );
-        parsed.add(ItemWithProperty(item: item, primaryProperty: primary));
       } catch (e) {
         debugPrint('[HomeController] item parse error: $e');
       }
@@ -158,6 +164,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       storage.read<List>(AppConstants.kCachedVideoAds) != null &&
       storage.read<List>(AppConstants.kCachedCategories) != null &&
       storage.read<List>(AppConstants.kCachedItems) != null &&
+      storage.read<List>(AppConstants.kCachedHomeSections) != null &&
+      storage.read<List>(AppConstants.kCachedRecentItems) != null &&
+      storage.read<List>(AppConstants.kCachedDiscountedItems) != null &&
       storage.read<int>(AppConstants.kMediaContentVersion) != null;
 
   bool get hasPersistedHomeCache => _hasPersistedHomeCache(GetStorage());
@@ -234,6 +243,180 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         .limit(50),
   );
 
+  Future<List<dynamic>> _fetchRecentItemRows() async => List<dynamic>.from(
+    await SupabaseService.client
+        .from('items')
+        .select(
+          'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+          'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
+          'accordsEN, topNotes, topNotesEN, middleNotes, middleNotesEN, '
+          'baseNotes, baseNotesEN, accordPercentages, sillage, longevity, '
+          'isFeatured, item_properties(*)',
+        )
+        .order('id', ascending: false)
+        .limit(30),
+  );
+
+  Future<List<dynamic>> _fetchDiscountedItemRows() async => List<dynamic>.from(
+    await SupabaseService.client
+        .from('items')
+        .select(
+          'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+          'itemDescription, itemDescriptionEN, notes, notesEN, accords, '
+          'accordsEN, topNotes, topNotesEN, middleNotes, middleNotesEN, '
+          'baseNotes, baseNotesEN, accordPercentages, sillage, longevity, '
+          'isFeatured, item_properties(*)',
+        )
+        .order('id', ascending: false),
+  );
+
+  static const _searchItemSelect =
+      'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+      'itemDescription, itemDescriptionEN, notes, notesEN, accords, accordsEN, '
+      'topNotes, topNotesEN, middleNotes, middleNotesEN, baseNotes, baseNotesEN, '
+      'accordPercentages, sillage, longevity, isFeatured, item_properties(*)';
+
+  Future<List<dynamic>> _searchItemRows(String column, String pattern) async {
+    return List<dynamic>.from(
+      await SupabaseService.client
+          .from('items')
+          .select(_searchItemSelect)
+          .ilike(column, pattern)
+          .limit(50),
+    );
+  }
+
+  Future<List<ItemWithProperty>> searchItems(String rawQuery) async {
+    final query = rawQuery.trim();
+    if (query.isEmpty) return displayItems.toList();
+
+    final pattern = '%$query%';
+    final responses = await Future.wait([
+      _searchItemRows('itemName', pattern),
+      _searchItemRows('itemNameEN', pattern),
+      _searchItemRows('brandName', pattern),
+      _searchItemRows('itemDescription', pattern),
+      _searchItemRows('itemDescriptionEN', pattern),
+    ]);
+    final rowsById = <int, Map<String, dynamic>>{};
+    for (final response in responses) {
+      for (final row in response) {
+        final json = Map<String, dynamic>.from(row as Map);
+        final id = (json['id'] as num?)?.toInt();
+        if (id != null && id > 0) rowsById[id] = json;
+      }
+    }
+    return _applyItemFilters(_parseItems(rowsById.values.toList()));
+  }
+
+  Future<List<dynamic>> _fetchHomeSectionRows() async => List<dynamic>.from(
+    await SupabaseService.client
+        .from('home_sections')
+        .select(
+          'id, title, titleEN, section_type, item_limit, display_order, is_active, '
+          'home_section_items(itemID, display_order, items('
+          'id, categoryID, subCategoryID, gender, itemName, itemNameEN, brandName, '
+          'itemDescription, itemDescriptionEN, notes, notesEN, accords, accordsEN, '
+          'topNotes, topNotesEN, middleNotes, middleNotesEN, baseNotes, baseNotesEN, '
+          'accordPercentages, sillage, longevity, isFeatured, item_properties(*)'
+          '))',
+        )
+        .order('display_order', ascending: true)
+        .order('id', ascending: true),
+  );
+
+  void _applyHomeSections(
+    List<dynamic> sectionRows,
+    List<dynamic> recentItemRows,
+    List<dynamic> discountedItemRows,
+  ) {
+    final sections =
+        sectionRows
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  HomeSectionModel.fromJson(Map<String, dynamic>.from(row)),
+            )
+            .where((section) => section.id > 0 && section.isActive)
+            .toList()
+          ..sort((left, right) {
+            final byDisplayOrder = left.displayOrder.compareTo(
+              right.displayOrder,
+            );
+            return byDisplayOrder == 0
+                ? left.id.compareTo(right.id)
+                : byDisplayOrder;
+          });
+    final recentItems = _parseItems(recentItemRows);
+    final discountedItems = _parseItems(discountedItemRows)
+        .where((entry) => entry.primaryProperty?.hasDiscount == true)
+        .toList(growable: false);
+    final mappedItems = <int, List<ItemWithProperty>>{};
+    for (final section in sections) {
+      if (section.isRecentlyAdded) {
+        mappedItems[section.id] = recentItems.take(section.itemLimit).toList();
+        continue;
+      }
+      if (section.isDiscounted) {
+        mappedItems[section.id] = discountedItems
+            .take(section.itemLimit)
+            .toList();
+        continue;
+      }
+      final row = sectionRows.firstWhere(
+        (entry) => (entry as Map)['id'] == section.id,
+        orElse: () => <String, dynamic>{},
+      );
+      final relationshipRows =
+          ((row as Map)['home_section_items'] as List?) ?? const [];
+      final itemRows = relationshipRows
+          .whereType<Map>()
+          .map((entry) => entry['items'])
+          .whereType<Map>()
+          .map((entry) => Map<String, dynamic>.from(entry))
+          .toList(growable: false);
+      mappedItems[section.id] = _parseItems(
+        itemRows,
+      ).take(section.itemLimit).toList(growable: false);
+    }
+    homeSections.value = List<HomeSectionModel>.of(sections);
+    sectionItems.value = mappedItems;
+  }
+
+  List<ItemWithProperty> itemsForSection(HomeSectionModel section) {
+    final result = sectionItems[section.id] ?? const <ItemWithProperty>[];
+    return _applyItemFilters(result);
+  }
+
+  List<ItemWithProperty> _applyItemFilters(Iterable<ItemWithProperty> source) {
+    var result = source
+        .where((entry) => genderFilters.value.contains(entry.item.gender))
+        .toList(growable: false);
+    if (inStockOnly.value) {
+      result = result
+          .where((entry) => !entry.isOutOfStock)
+          .toList(growable: false);
+    }
+    return result;
+  }
+
+  /// Applies an admin reorder immediately without re-reading a potentially
+  /// lagging database replica. The content-version refresh will persist the
+  /// same order into the local cache on its next normal update.
+  void applyHomeSectionOrder(List<int> orderedIds) {
+    final positions = <int, int>{
+      for (var index = 0; index < orderedIds.length; index++)
+        orderedIds[index]: index,
+    };
+    final reordered = homeSections.toList()
+      ..sort(
+        (left, right) => (positions[left.id] ?? orderedIds.length).compareTo(
+          positions[right.id] ?? orderedIds.length,
+        ),
+      );
+    homeSections.value = reordered;
+  }
+
   Future<void> checkForUpdates({bool force = false}) async {
     if (isCheckingForUpdates.value) return;
     isCheckingForUpdates.value = true;
@@ -263,6 +446,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         _fetchVideoAdRows(),
         _fetchCategoryRows(),
         _fetchDefaultItemRows(),
+        _fetchHomeSectionRows(),
+        _fetchRecentItemRows(),
+        _fetchDiscountedItemRows(),
       ]);
       final promotionRows = rows[0];
       final bannerRows = rows[1];
@@ -270,6 +456,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       final videoAdRows = rows[3];
       final categoryRows = rows[4];
       final itemRows = rows[5];
+      final homeSectionRows = rows[6];
+      final recentItemRows = rows[7];
+      final discountedItemRows = rows[8];
 
       final versionsAfterFetch = await _fetchRemoteContentVersions();
       final versionAfterFetch = versionsAfterFetch?.data;
@@ -293,6 +482,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         storage.write(AppConstants.kCachedVideoAds, videoAdRows),
         storage.write(AppConstants.kCachedCategories, categoryRows),
         storage.write(AppConstants.kCachedItems, itemRows),
+        storage.write(AppConstants.kCachedHomeSections, homeSectionRows),
+        storage.write(AppConstants.kCachedRecentItems, recentItemRows),
+        storage.write(AppConstants.kCachedDiscountedItems, discountedItemRows),
         storage.write(AppConstants.kHomeContentVersion, appliedVersion),
         storage.write(AppConstants.kMediaContentVersion, appliedMediaVersion),
         storage.write(AppConstants.kHomeCacheSchema, _cacheSchema),
@@ -306,7 +498,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
           .whereType<Map>()
           .map((row) => PromotionModel.fromJson(Map<String, dynamic>.from(row)))
           .where((promotion) => !promotion.isExpired)
-          .toList(growable: false);
+          .toList();
       banners.value = bannerRows
           .whereType<Map>()
           .map((row) => BannerModel.fromJson(Map<String, dynamic>.from(row)))
@@ -333,6 +525,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         items.value = defaultItems;
         _applyFilters();
       }
+      _applyHomeSections(homeSectionRows, recentItemRows, discountedItemRows);
       _schedulePromotionExpiry();
       hasItemsError.value = false;
 
@@ -352,6 +545,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       isLoadingVideoAds.value = false;
       isLoadingCategories.value = false;
       isLoadingItems.value = false;
+      isLoadingHomeSections.value = false;
       isCheckingForUpdates.value = false;
     }
   }
@@ -423,7 +617,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     final parsed = rows
         .whereType<Map>()
         .map((row) => SubCategoryModel.fromJson(Map<String, dynamic>.from(row)))
-        .toList(growable: false);
+        .toList();
     _subCategoryCache[categoryId] = parsed;
     subCategories.value = parsed;
 
@@ -440,8 +634,20 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       final storage = GetStorage();
 
       // Restore persisted filters
-      final savedGender = storage.read<int>(AppConstants.kFilterGender);
-      genderFilter.value = savedGender;
+      final savedGenders = storage.read<List>(AppConstants.kFilterGenders);
+      if (savedGenders != null) {
+        genderFilters.assignAll(
+          savedGenders.whereType<num>().map((gender) => gender.toInt()),
+        );
+      } else {
+        // Migrate the old single-select filter. A missing old value meant
+        // "All", which is represented by all three options being checked.
+        final savedGender = storage.read<int>(AppConstants.kFilterGender);
+        genderFilters.assignAll(
+          savedGender == null ? {0, 1, 2} : {savedGender},
+        );
+        storage.write(AppConstants.kFilterGenders, genderFilters.toList());
+      }
       inStockOnly.value =
           storage.read<bool>(AppConstants.kFilterInStock) ?? false;
 
@@ -460,6 +666,15 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         AppConstants.kCachedCategories,
       );
       final cachedItems = storage.read<List>(AppConstants.kCachedItems);
+      final cachedHomeSections = storage.read<List>(
+        AppConstants.kCachedHomeSections,
+      );
+      final cachedRecentItems = storage.read<List>(
+        AppConstants.kCachedRecentItems,
+      );
+      final cachedDiscountedItems = storage.read<List>(
+        AppConstants.kCachedDiscountedItems,
+      );
 
       if (cachedBanners != null) {
         banners.value = cachedBanners
@@ -505,6 +720,16 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         items.value = parsed;
         _applyFilters();
         isLoadingItems.value = false;
+        if (cachedHomeSections != null &&
+            cachedRecentItems != null &&
+            cachedDiscountedItems != null) {
+          _applyHomeSections(
+            cachedHomeSections,
+            cachedRecentItems,
+            cachedDiscountedItems,
+          );
+          isLoadingHomeSections.value = false;
+        }
       }
     } catch (e) {
       debugPrint('[HomeController] loadFromCache error: $e');
@@ -619,14 +844,15 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   void selectCategory(int? id) => selectedCategoryId.value = id;
   void selectSubCategory(int? id) => selectedSubCategoryId.value = id;
 
-  void setGenderFilter(int? v) {
-    genderFilter.value = v;
-    final storage = GetStorage();
-    if (v == null) {
-      storage.remove(AppConstants.kFilterGender);
+  void toggleGenderFilter(int gender) {
+    final updated = Set<int>.from(genderFilters.value);
+    if (updated.contains(gender)) {
+      updated.remove(gender);
     } else {
-      storage.write(AppConstants.kFilterGender, v);
+      updated.add(gender);
     }
+    genderFilters.value = updated;
+    GetStorage().write(AppConstants.kFilterGenders, updated.toList());
   }
 
   void setInStockOnly(bool v) {
@@ -643,15 +869,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   }
 
   void _applyFilters() {
-    var result = items.toList();
-    final gender = genderFilter.value;
-    if (gender != null) {
-      result = result.where((i) => i.item.gender == gender).toList();
-    }
-    if (inStockOnly.value) {
-      result = result.where((i) => !i.isOutOfStock).toList();
-    }
-    displayItems.value = result;
+    displayItems.value = _applyItemFilters(items);
   }
 
   @override

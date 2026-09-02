@@ -21,6 +21,7 @@ export interface CatalogProperty {
   sizeMl: number;
   image: string;
   price: number;
+  discountPercentage?: number;
   inStock: boolean;
   isDefault: boolean;
   descriptionAr: string;
@@ -70,6 +71,8 @@ export interface VeraIntent {
   perfume_name: string;
   brand: string;
   concentration: string;
+  requested_notes: string[];
+  requested_accords: string[];
   needs_clarification: boolean;
   clarification_question: string;
 }

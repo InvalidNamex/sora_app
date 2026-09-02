@@ -89,6 +89,7 @@ class VeraRecommendationModel {
               'size': propertyJson['sizeMl'],
               'image': propertyJson['image'],
               'price': propertyJson['price'],
+              'discountPercentage': propertyJson['discountPercentage'],
               'inStock': propertyJson['inStock'],
               'isDefault': propertyJson['isDefault'],
               'propertyDescription': propertyJson['descriptionAr'],

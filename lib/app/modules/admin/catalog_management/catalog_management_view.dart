@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/item_property_model.dart';
 import '../../../core/utils/responsive.dart';
 import 'catalog_management_controller.dart';
 
@@ -35,6 +36,29 @@ int _parsePerfumeRating(String input) {
   return rating.clamp(1, 5);
 }
 
+class _AdminSearchField extends StatelessWidget {
+  const _AdminSearchField({required this.hintText, required this.onChanged});
+
+  final String hintText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: TextField(
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+}
+
 class CatalogManagementView extends GetView<CatalogManagementController> {
   const CatalogManagementView({super.key});
 
@@ -45,13 +69,13 @@ class CatalogManagementView extends GetView<CatalogManagementController> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('catalog_management'.tr),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Categories'),
-              Tab(text: 'Subcategories'),
-              Tab(text: 'Items'),
-              Tab(text: 'Properties'),
+              Tab(text: 'categories'.tr),
+              Tab(text: 'subcategories'.tr),
+              Tab(text: 'items'.tr),
+              Tab(text: 'properties'.tr),
             ],
           ),
           actions: [
@@ -91,49 +115,60 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
         onPressed: () => _showCategoryDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.categories.length,
-        itemBuilder: (context, i) {
-          final cat = controller.categories[i];
-          return Card(
-            child: ListTile(
-              title: Text(cat.categoryName),
-              subtitle: Text('ID: ${cat.id}'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () =>
-                        _showCategoryDialog(context, category: cat),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      Get.defaultDialog(
-                        title: 'Delete Category',
-                        middleText:
-                            'Are you sure you want to delete this category?',
-                        textConfirm: 'Delete',
-                        textCancel: 'Cancel',
-                        confirmTextColor: Colors.white,
-                        onConfirm: () {
-                          controller.deleteRecord(
-                            'categories',
-                            cat.id,
-                            imageUrl: cat.categoryImage,
-                          );
-                          if (Get.isDialogOpen == true) Get.back();
-                        },
-                      );
-                    },
-                  ),
-                ],
+      body: Column(
+        children: [
+          _AdminSearchField(
+            hintText: 'search_categories'.tr,
+            onChanged: (value) => controller.categorySearch.value = value,
+          ),
+          Expanded(
+            child: Obx(
+              () => ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredCategories.length,
+                itemBuilder: (context, i) {
+                  final cat = controller.filteredCategories[i];
+                  return Card(
+                    child: ListTile(
+                      title: Text(cat.categoryName),
+                      subtitle: Text('ID: ${cat.id}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () =>
+                                _showCategoryDialog(context, category: cat),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              Get.defaultDialog(
+                                title: 'delete_category'.tr,
+                                middleText: 'delete_category_message'.tr,
+                                textConfirm: 'delete'.tr,
+                                textCancel: 'cancel'.tr,
+                                confirmTextColor: Colors.white,
+                                onConfirm: () {
+                                  controller.deleteRecord(
+                                    'categories',
+                                    cat.id,
+                                    imageUrl: cat.categoryImage,
+                                  );
+                                  if (Get.isDialogOpen == true) Get.back();
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -152,7 +187,7 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
     bool isUploading = false;
 
     Get.defaultDialog(
-      title: isEdit ? 'Edit Category' : 'Add Category',
+      title: isEdit ? 'edit_category'.tr : 'add_category'.tr,
       content: StatefulBuilder(
         builder: (context, setState) {
           return Column(
@@ -160,17 +195,17 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name (Arabic)'),
+                decoration: InputDecoration(labelText: 'name_ar'.tr),
               ),
               TextField(
                 controller: nameEnCtrl,
-                decoration: const InputDecoration(labelText: 'Name (English)'),
+                decoration: InputDecoration(labelText: 'name_en'.tr),
               ),
               const SizedBox(height: 10),
               if (pickedImage != null)
-                Text('Picked Image: ${pickedImage!.name}'),
+                Text('picked_image'.trParams({'name': pickedImage!.name})),
               if (pickedImage == null && imgCtrl.text.isNotEmpty)
-                const Text('Using existing image URL'),
+                Text('using_existing_image'.tr),
               ElevatedButton.icon(
                 onPressed: () async {
                   final ImagePicker picker = ImagePicker();
@@ -184,7 +219,7 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
                   }
                 },
                 icon: const Icon(Icons.image),
-                label: const Text('Pick Image'),
+                label: Text('pick_image'.tr),
               ),
               if (isUploading) ...[
                 const SizedBox(height: 10),
@@ -219,7 +254,7 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
                     final data = {
                       'categoryName': nameCtrl.text,
                       'categoryEN': nameEnCtrl.text,
-                      'image': finalImageUrl,
+                      'categoryImage': finalImageUrl,
                     };
 
                     if (isEdit) {
@@ -236,7 +271,7 @@ class _CategoriesTab extends GetView<CatalogManagementController> {
                       Get.back();
                     }
                   },
-            child: const Text('Save'),
+            child: Text('save'.tr),
           );
         },
       ),
@@ -252,49 +287,62 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
         onPressed: () => _showSubCatDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.subCategories.length,
-        itemBuilder: (context, i) {
-          final subCat = controller.subCategories[i];
-          return Card(
-            child: ListTile(
-              title: Text(subCat.subCategoryName),
-              subtitle: Text('ID: ${subCat.id} | Cat ID: ${subCat.categoryId}'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () =>
-                        _showSubCatDialog(context, subCategory: subCat),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      Get.defaultDialog(
-                        title: 'Delete Subcategory',
-                        middleText:
-                            'Are you sure you want to delete this subcategory?',
-                        textConfirm: 'Delete',
-                        textCancel: 'Cancel',
-                        confirmTextColor: Colors.white,
-                        onConfirm: () {
-                          controller.deleteRecord(
-                            'sub_categories',
-                            subCat.id,
-                            imageUrl: subCat.subCategoryImage,
-                          );
-                          if (Get.isDialogOpen == true) Get.back();
-                        },
-                      );
-                    },
-                  ),
-                ],
+      body: Column(
+        children: [
+          _AdminSearchField(
+            hintText: 'search_subcategories'.tr,
+            onChanged: (value) => controller.subCategorySearch.value = value,
+          ),
+          Expanded(
+            child: Obx(
+              () => ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredSubCategories.length,
+                itemBuilder: (context, i) {
+                  final subCat = controller.filteredSubCategories[i];
+                  return Card(
+                    child: ListTile(
+                      title: Text(subCat.subCategoryName),
+                      subtitle: Text(
+                        'ID: ${subCat.id} | Cat ID: ${subCat.categoryId}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () =>
+                                _showSubCatDialog(context, subCategory: subCat),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              Get.defaultDialog(
+                                title: 'delete_subcategory'.tr,
+                                middleText: 'delete_subcategory_message'.tr,
+                                textConfirm: 'delete'.tr,
+                                textCancel: 'cancel'.tr,
+                                confirmTextColor: Colors.white,
+                                onConfirm: () {
+                                  controller.deleteRecord(
+                                    'sub_categories',
+                                    subCat.id,
+                                    imageUrl: subCat.subCategoryImage,
+                                  );
+                                  if (Get.isDialogOpen == true) Get.back();
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -317,7 +365,7 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
     bool isUploading = false;
 
     Get.defaultDialog(
-      title: isEdit ? 'Edit Subcategory' : 'Add Subcategory',
+      title: isEdit ? 'edit_subcategory'.tr : 'add_subcategory'.tr,
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
@@ -326,7 +374,7 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
               children: [
                 DropdownButtonFormField<int>(
                   initialValue: selectedCategoryId,
-                  decoration: const InputDecoration(labelText: 'Category'),
+                  decoration: InputDecoration(labelText: 'category'.tr),
                   items: controller.categories.map((cat) {
                     return DropdownMenuItem<int>(
                       value: cat.id,
@@ -341,19 +389,17 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
                 ),
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name (Arabic)'),
+                  decoration: InputDecoration(labelText: 'name_ar'.tr),
                 ),
                 TextField(
                   controller: nameEnCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Name (English)',
-                  ),
+                  decoration: InputDecoration(labelText: 'name_en'.tr),
                 ),
                 const SizedBox(height: 10),
                 if (pickedImage != null)
-                  Text('Picked Image: ${pickedImage!.name}'),
+                  Text('picked_image'.trParams({'name': pickedImage!.name})),
                 if (pickedImage == null && imgCtrl.text.isNotEmpty)
-                  const Text('Using existing image URL'),
+                  Text('using_existing_image'.tr),
                 ElevatedButton.icon(
                   onPressed: () async {
                     final ImagePicker picker = ImagePicker();
@@ -367,7 +413,7 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
                     }
                   },
                   icon: const Icon(Icons.image),
-                  label: const Text('Pick Image'),
+                  label: Text('pick_image'.tr),
                 ),
                 if (isUploading) ...[
                   const SizedBox(height: 10),
@@ -403,8 +449,8 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
                     final data = {
                       'categoryID': selectedCategoryId ?? 0,
                       'subCategoryName': nameCtrl.text,
-                      'subCategoryNameEN': nameEnCtrl.text,
-                      'image': finalImageUrl,
+                      'subCategoryEN': nameEnCtrl.text,
+                      'subCategoryImage': finalImageUrl,
                     };
 
                     if (isEdit) {
@@ -421,7 +467,7 @@ class _SubCategoriesTab extends GetView<CatalogManagementController> {
                       Get.back();
                     }
                   },
-            child: const Text('Save'),
+            child: Text('save'.tr),
           );
         },
       ),
@@ -437,63 +483,83 @@ class _ItemsTab extends GetView<CatalogManagementController> {
         onPressed: () => _showItemDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.items.length,
-        itemBuilder: (context, i) {
-          final item = controller.items[i];
-          return Card(
-            child: ListTile(
-              title: Text(item.itemName),
-              subtitle: Text(
-                [
-                  if (item.brandName.isNotEmpty) item.brandName,
-                  'ID: ${item.id}',
-                  'Cat: ${item.categoryId}',
-                  'SubCat: ${item.subCategoryId}',
-                ].join(' | '),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () => _showItemDialog(context, item: item),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      Get.defaultDialog(
-                        title: 'Delete Item',
-                        middleText:
-                            'Are you sure you want to delete this item?',
-                        textConfirm: 'Delete',
-                        textCancel: 'Cancel',
-                        confirmTextColor: Colors.white,
-                        onConfirm: () {
-                          controller.deleteRecord('items', item.id);
-                          if (Get.isDialogOpen == true) Get.back();
-                        },
-                      );
-                    },
-                  ),
-                ],
+      body: Column(
+        children: [
+          _AdminSearchField(
+            hintText: 'search_catalog_items'.tr,
+            onChanged: (value) => controller.itemSearch.value = value,
+          ),
+          Expanded(
+            child: Obx(
+              () => ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredItems.length,
+                itemBuilder: (context, i) {
+                  final item = controller.filteredItems[i];
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.itemName),
+                      subtitle: Text(
+                        [
+                          if (item.brandName.isNotEmpty) item.brandName,
+                          'ID: ${item.id}',
+                          'Cat: ${item.categoryId}',
+                          'SubCat: ${item.subCategoryId}',
+                        ].join(' | '),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () =>
+                                _showItemDialog(context, item: item),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              Get.defaultDialog(
+                                title: 'delete_item'.tr,
+                                middleText: 'delete_item_message'.tr,
+                                textConfirm: 'delete'.tr,
+                                textCancel: 'cancel'.tr,
+                                confirmTextColor: Colors.white,
+                                onConfirm: () {
+                                  controller.deleteRecord('items', item.id);
+                                  if (Get.isDialogOpen == true) Get.back();
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
   void _showItemDialog(BuildContext context, {dynamic item}) {
     final isEdit = item != null;
-    final catIdCtrl = TextEditingController(
-      text: isEdit ? item.categoryId.toString() : '',
-    );
-    final subCatIdCtrl = TextEditingController(
-      text: isEdit ? item.subCategoryId.toString() : '',
-    );
+    int? selectedCategoryId =
+        isEdit &&
+            controller.categories.any(
+              (category) => category.id == item.categoryId,
+            )
+        ? item.categoryId
+        : null;
+    int? selectedSubCategoryId =
+        isEdit &&
+            controller.subCategories.any(
+              (subCategory) => subCategory.id == item.subCategoryId,
+            )
+        ? item.subCategoryId
+        : null;
     final nameCtrl = TextEditingController(text: isEdit ? item.nameAr : '');
     final nameEnCtrl = TextEditingController(text: isEdit ? item.nameEn : '');
     final brandCtrl = TextEditingController(text: isEdit ? item.brandName : '');
@@ -535,139 +601,189 @@ class _ItemsTab extends GetView<CatalogManagementController> {
     bool isFeatured = isEdit ? item.isFeatured : false;
 
     Get.defaultDialog(
-      title: isEdit ? 'Edit Item' : 'Add Item',
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: catIdCtrl,
-              decoration: const InputDecoration(labelText: 'Category ID'),
+      title: isEdit ? 'edit_item'.tr : 'add_item'.tr,
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          final availableSubCategories = controller.subCategories
+              .where(
+                (subCategory) => subCategory.categoryId == selectedCategoryId,
+              )
+              .toList(growable: false);
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 560,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.62,
             ),
-            TextField(
-              controller: subCatIdCtrl,
-              decoration: const InputDecoration(labelText: 'SubCategory ID'),
-            ),
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Name (Arabic)'),
-            ),
-            TextField(
-              controller: nameEnCtrl,
-              decoration: const InputDecoration(labelText: 'Name (English)'),
-            ),
-            TextField(
-              controller: brandCtrl,
-              decoration: InputDecoration(labelText: 'brand'.tr),
-            ),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Description (Arabic)',
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedCategoryId,
+                      isExpanded: true,
+                      decoration: InputDecoration(labelText: 'category'.tr),
+                      items: controller.categories
+                          .map(
+                            (category) => DropdownMenuItem(
+                              value: category.id,
+                              child: Text(category.categoryName),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) => setState(() {
+                        selectedCategoryId = value;
+                        selectedSubCategoryId = null;
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedSubCategoryId,
+                      isExpanded: true,
+                      decoration: InputDecoration(labelText: 'subcategory'.tr),
+                      items: availableSubCategories
+                          .map(
+                            (subCategory) => DropdownMenuItem(
+                              value: subCategory.id,
+                              child: Text(subCategory.subCategoryName),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: selectedCategoryId == null
+                          ? null
+                          : (value) =>
+                                setState(() => selectedSubCategoryId = value),
+                    ),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(labelText: 'name_ar'.tr),
+                    ),
+                    TextField(
+                      controller: nameEnCtrl,
+                      decoration: InputDecoration(labelText: 'name_en'.tr),
+                    ),
+                    TextField(
+                      controller: brandCtrl,
+                      decoration: InputDecoration(labelText: 'brand'.tr),
+                    ),
+                    TextField(
+                      controller: descCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'description_ar'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: descEnCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'description_en'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: topNotesCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'top_notes'.tr} (${'language_ar'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: topNotesEnCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'top_notes'.tr} (${'language_en'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: middleNotesCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'middle_notes'.tr} (${'language_ar'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: middleNotesEnCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'middle_notes'.tr} (${'language_en'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: baseNotesCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'base_notes'.tr} (${'language_ar'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: baseNotesEnCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'base_notes'.tr} (${'language_en'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: accordsCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'main_accords'.tr} (${'language_ar'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: accordsEnCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: "${'main_accords'.tr} (${'language_en'.tr})",
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: accordPercentagesCtrl,
+                      minLines: 2,
+                      maxLines: 4,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: '${'accord_intensity'.tr} (%)',
+                        helperText: 'one_term_per_line'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: sillageCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'sillage_range'.tr,
+                      ),
+                    ),
+                    TextField(
+                      controller: longevityCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'longevity_range'.tr,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            TextField(
-              controller: descEnCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Description (English)',
-              ),
-            ),
-            TextField(
-              controller: topNotesCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'top_notes'.tr} (Arabic)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: topNotesEnCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'top_notes'.tr} (English)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: middleNotesCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'middle_notes'.tr} (Arabic)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: middleNotesEnCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'middle_notes'.tr} (English)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: baseNotesCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'base_notes'.tr} (Arabic)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: baseNotesEnCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'base_notes'.tr} (English)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: accordsCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'main_accords'.tr} (Arabic)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: accordsEnCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: '${'main_accords'.tr} (English)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: accordPercentagesCtrl,
-              minLines: 2,
-              maxLines: 4,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: '${'accord_intensity'.tr} (%)',
-                helperText: 'one_term_per_line'.tr,
-              ),
-            ),
-            TextField(
-              controller: sillageCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'Sillage (1-5)'),
-            ),
-            TextField(
-              controller: longevityCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'Longevity (1-5)'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
       confirm: ElevatedButton(
         onPressed: () async {
@@ -691,8 +807,8 @@ class _ItemsTab extends GetView<CatalogManagementController> {
           }
 
           final data = {
-            'categoryID': int.tryParse(catIdCtrl.text) ?? 0,
-            'subCategoryID': int.tryParse(subCatIdCtrl.text) ?? 0,
+            'categoryID': selectedCategoryId ?? 0,
+            'subCategoryID': selectedSubCategoryId ?? 0,
             'itemName': nameCtrl.text,
             'itemNameEN': nameEnCtrl.text,
             'brandName': brandCtrl.text.trim(),
@@ -722,7 +838,7 @@ class _ItemsTab extends GetView<CatalogManagementController> {
             Get.back();
           }
         },
-        child: const Text('Save'),
+        child: Text('save'.tr),
       ),
     );
   }
@@ -736,54 +852,110 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
         onPressed: () => _showPropertyDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.properties.length,
-        itemBuilder: (context, i) {
-          final prop = controller.properties[i];
-          return Card(
-            child: ListTile(
-              title: Text(
-                'Item ID: ${prop.itemId} - ${prop.propertyDescription}',
-              ),
-              subtitle: Text(
-                'ID: ${prop.id} | Size: ${prop.sizeMl}ml | Price: ${prop.price}',
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () =>
-                        _showPropertyDialog(context, property: prop),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      Get.defaultDialog(
-                        title: 'Delete Property',
-                        middleText:
-                            'Are you sure you want to delete this property?',
-                        textConfirm: 'Delete',
-                        textCancel: 'Cancel',
-                        confirmTextColor: Colors.white,
-                        onConfirm: () {
-                          controller.deleteRecord(
-                            'item_properties',
-                            prop.id,
-                            imageUrl: prop.image,
-                          );
-                          if (Get.isDialogOpen == true) Get.back();
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      body: Column(
+        children: [
+          _AdminSearchField(
+            hintText: 'search_properties'.tr,
+            onChanged: (value) => controller.propertySearch.value = value,
+          ),
+          Expanded(
+            child: Obx(() {
+              final groups = controller.groupedFilteredProperties;
+              final itemIds = groups.keys.toList()
+                ..sort((left, right) {
+                  final leftName = controller.itemForId(left)?.itemName ?? '';
+                  final rightName = controller.itemForId(right)?.itemName ?? '';
+                  return leftName.toLowerCase().compareTo(
+                    rightName.toLowerCase(),
+                  );
+                });
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: itemIds.length,
+                itemBuilder: (context, i) {
+                  final itemId = itemIds[i];
+                  final item = controller.itemForId(itemId);
+                  final properties = groups[itemId]!;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ExpansionTile(
+                      initiallyExpanded: true,
+                      title: Text(
+                        item?.itemName.isNotEmpty == true
+                            ? item!.itemName
+                            : 'item_id_label'.trParams({'id': '$itemId'}),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        'property_count'.trParams({
+                          'count': '${properties.length}',
+                        }),
+                      ),
+                      children: [
+                        for (final prop in properties)
+                          ListTile(
+                            dense: true,
+                            title: Text(
+                              '${prop.sizeMl} ml · ${prop.propertyDescription}',
+                            ),
+                            subtitle: Text(
+                              '${'price'.tr}: ${prop.price.toStringAsFixed(2)}'
+                              '${prop.hasDiscount ? ' · ${prop.discountPercentage.toStringAsFixed(0)}% ${'off'.tr}' : ''}',
+                            ),
+                            trailing: Wrap(
+                              spacing: 0,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () => _showPropertyDialog(
+                                    context,
+                                    property: prop,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      _confirmDeleteProperty(context, prop),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+        ],
       ),
+    );
+  }
+
+  void _confirmDeleteProperty(
+    BuildContext context,
+    ItemPropertyModel property,
+  ) {
+    Get.defaultDialog(
+      title: 'delete_property'.tr,
+      middleText: 'delete_property_message'.tr,
+      textConfirm: 'delete'.tr,
+      textCancel: 'cancel'.tr,
+      confirmTextColor: Colors.white,
+      onConfirm: () {
+        controller.deleteRecord(
+          'item_properties',
+          property.id,
+          imageUrl: property.image,
+        );
+        if (Get.isDialogOpen == true) Get.back();
+      },
     );
   }
 
@@ -798,6 +970,9 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
     final priceCtrl = TextEditingController(
       text: isEdit ? property.price.toString() : '',
     );
+    final discountCtrl = TextEditingController(
+      text: isEdit ? property.discountPercentage.toString() : '0',
+    );
     final imgCtrl = TextEditingController(text: isEdit ? property.image : '');
     final descCtrl = TextEditingController(text: isEdit ? property.descAr : '');
     final descEnCtrl = TextEditingController(
@@ -807,7 +982,7 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
     bool isUploading = false;
 
     Get.defaultDialog(
-      title: isEdit ? 'Edit Property' : 'Add Property',
+      title: isEdit ? 'edit_property'.tr : 'add_property'.tr,
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
@@ -816,33 +991,42 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
               children: [
                 TextField(
                   controller: itemIdCtrl,
-                  decoration: const InputDecoration(labelText: 'Item ID'),
+                  decoration: InputDecoration(labelText: 'item_id'.tr),
                 ),
                 TextField(
                   controller: sizeCtrl,
-                  decoration: const InputDecoration(labelText: 'Size (ml)'),
+                  decoration: InputDecoration(labelText: 'size_ml'.tr),
                 ),
                 TextField(
                   controller: priceCtrl,
-                  decoration: const InputDecoration(labelText: 'Price'),
+                  decoration: InputDecoration(labelText: 'price'.tr),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                TextField(
+                  controller: discountCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'discount_percent'.tr,
+                    helperText: 'discount_applies_to_size'.tr,
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (Arabic)',
-                  ),
+                  decoration: InputDecoration(labelText: 'description_ar'.tr),
                 ),
                 TextField(
                   controller: descEnCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (English)',
-                  ),
+                  decoration: InputDecoration(labelText: 'description_en'.tr),
                 ),
                 const SizedBox(height: 10),
                 if (pickedImage != null)
-                  Text('Picked Image: ${pickedImage!.name}'),
+                  Text('picked_image'.trParams({'name': pickedImage!.name})),
                 if (pickedImage == null && imgCtrl.text.isNotEmpty)
-                  const Text('Using existing image URL'),
+                  Text('using_existing_image'.tr),
                 ElevatedButton.icon(
                   onPressed: () async {
                     final ImagePicker picker = ImagePicker();
@@ -856,7 +1040,7 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
                     }
                   },
                   icon: const Icon(Icons.image),
-                  label: const Text('Pick Image'),
+                  label: Text('pick_image'.tr),
                 ),
                 if (isUploading) ...[
                   const SizedBox(height: 10),
@@ -893,6 +1077,11 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
                       'itemID': int.tryParse(itemIdCtrl.text) ?? 0,
                       'size': int.tryParse(sizeCtrl.text) ?? 0,
                       'price': double.tryParse(priceCtrl.text) ?? 0.0,
+                      'discountPercentage':
+                          (double.tryParse(discountCtrl.text) ?? 0.0).clamp(
+                            0,
+                            100,
+                          ),
                       'image': finalImageUrl,
                       'PropertyDescription': descCtrl.text,
                       'propertyDescriptionEN': descEnCtrl.text,
@@ -912,7 +1101,7 @@ class _PropertiesTab extends GetView<CatalogManagementController> {
                       Get.back();
                     }
                   },
-            child: const Text('Save'),
+            child: Text('save'.tr),
           );
         },
       ),

@@ -10,8 +10,29 @@ class ItemPropertyModel {
   final String _propertyDescription;
   final String _propertyDescriptionEn;
   final double price;
+  final double discountPercentage;
   final bool inStock;
   final bool isDefault;
+
+  bool get hasDiscount => discountPercentage > 0 && salePrice < price;
+
+  double get discountAmount => hasDiscount ? price - salePrice : 0;
+
+  double get salePrice {
+    final percentage = discountPercentage.clamp(0, 100);
+    return double.parse((price * (1 - percentage / 100)).toStringAsFixed(2));
+  }
+
+  /// The bottle size shown when no size has been selected by the user.
+  static ItemPropertyModel? preferred(Iterable<ItemPropertyModel> properties) {
+    for (final property in properties) {
+      if (property.sizeMl == 50) return property;
+    }
+    for (final property in properties) {
+      if (property.isDefault) return property;
+    }
+    return properties.isEmpty ? null : properties.first;
+  }
 
   String get propertyDescription {
     if (isEnglishLocale() && _propertyDescriptionEn.trim().isNotEmpty) {
@@ -31,6 +52,7 @@ class ItemPropertyModel {
     String propertyDescription = '',
     String propertyDescriptionEn = '',
     required this.price,
+    this.discountPercentage = 0,
     this.inStock = true,
     this.isDefault = false,
   }) : _propertyDescription = propertyDescription,
@@ -51,6 +73,8 @@ class ItemPropertyModel {
           'PropertyDescriptionEN',
         ]),
         price: (json['price'] as num?)?.toDouble() ?? 0,
+        discountPercentage:
+            (json['discountPercentage'] as num?)?.toDouble() ?? 0,
         inStock: (json['inStock'] as bool?) ?? true,
         isDefault: (json['isDefault'] as bool?) ?? false,
       );

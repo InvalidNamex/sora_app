@@ -340,16 +340,41 @@ class _ItemDetails extends StatelessWidget {
 
           // ── Price ─────────────────────────────────────────────────
           Obx(() {
-            final price = controller.selectedProperty?.price;
-            return Text(
-              price != null
-                  ? '${AppConstants.currency} ${price.toStringAsFixed(2)}'
-                  : '',
-              style: TextStyle(
-                color: AppConstants.darkBeige,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
+            final property = controller.selectedProperty;
+            if (property == null) return const SizedBox.shrink();
+            if (!property.hasDiscount) {
+              return Text(
+                '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: AppConstants.darkBeige,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              );
+            }
+            return Wrap(
+              spacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                    decoration: TextDecoration.lineThrough,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  '${AppConstants.currency} ${property.salePrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                ),
+              ],
             );
           }),
 

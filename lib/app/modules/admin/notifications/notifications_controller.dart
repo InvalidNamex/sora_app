@@ -7,12 +7,17 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/in_app_message_model.dart';
+import '../../../core/models/admin_notification_model.dart';
 import '../../../core/models/item_model.dart';
+import '../../../core/services/admin_notification_service.dart';
 import '../../../core/services/in_app_messaging_service.dart';
+import '../../../core/services/link_navigation_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 
 class NotificationsController extends GetxController {
+  final adminNotifications = <AdminNotificationModel>[].obs;
+  final isLoadingAdminNotifications = false.obs;
   final isSending = false.obs;
   final isProcessingQueue = false.obs;
   final isPublishingInApp = false.obs;
@@ -72,6 +77,7 @@ class NotificationsController extends GetxController {
   void onReady() {
     super.onReady();
     loadItems();
+    loadAdminNotifications();
   }
 
   @override
@@ -88,6 +94,43 @@ class NotificationsController extends GetxController {
   }
 
   void _refreshInAppPreview() => inAppPreviewRevision.value++;
+
+  int get unreadAdminNotificationCount =>
+      adminNotifications.where((notification) => !notification.isRead).length;
+
+  Future<void> loadAdminNotifications() async {
+    isLoadingAdminNotifications.value = true;
+    try {
+      adminNotifications.value = await AdminNotificationService.fetch();
+    } catch (e) {
+      debugPrint('[NotificationsController] admin inbox load error: $e');
+    } finally {
+      isLoadingAdminNotifications.value = false;
+    }
+  }
+
+  Future<void> openAdminNotification(
+    AdminNotificationModel notification,
+  ) async {
+    if (!notification.isRead) {
+      try {
+        await AdminNotificationService.markRead(notification.id);
+        final index = adminNotifications.indexWhere(
+          (item) => item.id == notification.id,
+        );
+        if (index >= 0) {
+          adminNotifications[index] = notification.copyWith(isRead: true);
+        }
+      } catch (e) {
+        debugPrint(
+          '[NotificationsController] mark notification read error: $e',
+        );
+      }
+    }
+    await LinkNavigationService.open(
+      notification.payload['deep_link'] as String?,
+    );
+  }
 
   Future<void> loadItems() async {
     isLoadingItems.value = true;

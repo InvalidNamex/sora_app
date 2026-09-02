@@ -96,7 +96,12 @@ class ItemGrid extends GetView<HomeController> {
               itemCount: count,
               itemBuilder: (_, i) {
                 final entry = loading ? null : items[i];
-                return ItemCard(entry: entry);
+                return ItemCard(
+                  entry: entry,
+                  heroTag: entry == null
+                      ? null
+                      : 'grid_item_${i}_${entry.item.id}',
+                );
               },
             ),
           ],

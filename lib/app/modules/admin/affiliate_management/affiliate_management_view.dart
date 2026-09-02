@@ -45,6 +45,29 @@ class AffiliateManagementView extends GetView<AffiliateManagementController> {
   }
 }
 
+class _AdminTabSearchField extends StatelessWidget {
+  const _AdminTabSearchField({required this.hintText, required this.onChanged});
+
+  final String hintText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: TextField(
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+}
+
 class _ApplicationsTab extends StatelessWidget {
   const _ApplicationsTab({required this.controller});
 
@@ -52,108 +75,127 @@ class _ApplicationsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (controller.loadingApplications.value) {
-        return const Center(
-          child: CircularProgressIndicator(color: AppConstants.darkBeige),
-        );
-      }
-      if (controller.pendingApplications.isEmpty) {
-        return Center(child: Text('no_pending_applications'.tr));
-      }
-      return RefreshIndicator(
-        color: AppConstants.darkBeige,
-        onRefresh: controller.fetchQueues,
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.pendingApplications.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final application = controller.pendingApplications[index];
-            final isReviewing = controller.reviewingId.value == application.id;
-            return Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            application.userName.isEmpty
-                                ? application.userPhone
-                                : application.userName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          application.preferredCode,
-                          textDirection: ui.TextDirection.ltr,
-                          style: const TextStyle(
-                            color: AppConstants.darkBeige,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (application.userPhone.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(application.userPhone),
-                    ],
-                    const SizedBox(height: 10),
-                    Text(application.message),
-                    const SizedBox(height: 8),
-                    Text(
-                      DateFormat.yMMMd().add_Hm().format(application.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.close),
-                            label: Text('reject'.tr),
-                            onPressed: isReviewing
-                                ? null
-                                : () => _showApplicationReview(
-                                    context,
-                                    controller,
-                                    application,
-                                    approve: false,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.check),
-                            label: Text('approve'.tr),
-                            onPressed: isReviewing
-                                ? null
-                                : () => _showApplicationReview(
-                                    context,
-                                    controller,
-                                    application,
-                                    approve: true,
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+    return Column(
+      children: [
+        _AdminTabSearchField(
+          hintText: 'search_applications'.tr,
+          onChanged: (value) => controller.applicationSearch.value = value,
+        ),
+        Expanded(
+          child: Obx(() {
+            if (controller.loadingApplications.value) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppConstants.darkBeige),
+              );
+            }
+            if (controller.filteredApplications.isEmpty) {
+              return Center(
+                child: Text(
+                  controller.applicationSearch.value.trim().isEmpty
+                      ? 'no_pending_applications'.tr
+                      : 'no_results'.tr,
                 ),
+              );
+            }
+            return RefreshIndicator(
+              color: AppConstants.darkBeige,
+              onRefresh: controller.fetchQueues,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredApplications.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final application = controller.filteredApplications[index];
+                  final isReviewing =
+                      controller.reviewingId.value == application.id;
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  application.userName.isEmpty
+                                      ? application.userPhone
+                                      : application.userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                application.preferredCode,
+                                textDirection: ui.TextDirection.ltr,
+                                style: const TextStyle(
+                                  color: AppConstants.darkBeige,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (application.userPhone.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(application.userPhone),
+                          ],
+                          const SizedBox(height: 10),
+                          Text(application.message),
+                          const SizedBox(height: 8),
+                          Text(
+                            DateFormat.yMMMd().add_Hm().format(
+                              application.createdAt,
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.close),
+                                  label: Text('reject'.tr),
+                                  onPressed: isReviewing
+                                      ? null
+                                      : () => _showApplicationReview(
+                                          context,
+                                          controller,
+                                          application,
+                                          approve: false,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.check),
+                                  label: Text('approve'.tr),
+                                  onPressed: isReviewing
+                                      ? null
+                                      : () => _showApplicationReview(
+                                          context,
+                                          controller,
+                                          application,
+                                          approve: true,
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             );
-          },
+          }),
         ),
-      );
-    });
+      ],
+    );
   }
 }
 
@@ -165,120 +207,137 @@ class _PayoutsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (controller.loadingPayouts.value) {
-        return const Center(
-          child: CircularProgressIndicator(color: AppConstants.darkBeige),
-        );
-      }
-      if (controller.pendingPayouts.isEmpty) {
-        return Center(child: Text('no_pending_payouts'.tr));
-      }
-      return RefreshIndicator(
-        color: AppConstants.darkBeige,
-        onRefresh: controller.fetchQueues,
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.pendingPayouts.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, i) {
-            final req = controller.pendingPayouts[i];
-            final isReviewing = controller.reviewingId.value == req.id;
-            return Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          req.affiliateName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        Text(
-                          '${AppConstants.currency} ${req.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: AppConstants.darkBeige,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      req.affiliatePhone,
-                      style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    if (req.payoutMethod != null ||
-                        req.payoutAccount != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '${_payoutMethodLabel(req.payoutMethod)}'
-                        ' · ${req.payoutAccount ?? '-'}',
-                        textDirection: ui.TextDirection.ltr,
-                      ),
-                    ],
-                    Text(
-                      DateFormat.yMMMd().format(req.createdAt),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: isReviewing
-                                ? null
-                                : () => _showPayoutReview(
-                                    context,
-                                    controller,
-                                    req,
-                                    paid: false,
-                                  ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
-                            ),
-                            child: Text('reject'.tr),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isReviewing
-                                ? null
-                                : () => _showPayoutReview(
-                                    context,
-                                    controller,
-                                    req,
-                                    paid: true,
-                                  ),
-                            child: Text('mark_paid'.tr),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+    return Column(
+      children: [
+        _AdminTabSearchField(
+          hintText: 'search_payouts'.tr,
+          onChanged: (value) => controller.payoutSearch.value = value,
+        ),
+        Expanded(
+          child: Obx(() {
+            if (controller.loadingPayouts.value) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppConstants.darkBeige),
+              );
+            }
+            if (controller.filteredPayouts.isEmpty) {
+              return Center(
+                child: Text(
+                  controller.payoutSearch.value.trim().isEmpty
+                      ? 'no_pending_payouts'.tr
+                      : 'no_results'.tr,
                 ),
+              );
+            }
+            return RefreshIndicator(
+              color: AppConstants.darkBeige,
+              onRefresh: controller.fetchQueues,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.filteredPayouts.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final req = controller.filteredPayouts[i];
+                  final isReviewing = controller.reviewingId.value == req.id;
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                req.affiliateName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text(
+                                '${AppConstants.currency} ${req.amount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: AppConstants.darkBeige,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            req.affiliatePhone,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          if (req.payoutMethod != null ||
+                              req.payoutAccount != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '${_payoutMethodLabel(req.payoutMethod)}'
+                              ' · ${req.payoutAccount ?? '-'}',
+                              textDirection: ui.TextDirection.ltr,
+                            ),
+                          ],
+                          Text(
+                            DateFormat.yMMMd().format(req.createdAt),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: isReviewing
+                                      ? null
+                                      : () => _showPayoutReview(
+                                          context,
+                                          controller,
+                                          req,
+                                          paid: false,
+                                        ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.redAccent,
+                                  ),
+                                  child: Text('reject'.tr),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: isReviewing
+                                      ? null
+                                      : () => _showPayoutReview(
+                                          context,
+                                          controller,
+                                          req,
+                                          paid: true,
+                                        ),
+                                  child: Text('mark_paid'.tr),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             );
-          },
+          }),
         ),
-      );
-    });
+      ],
+    );
   }
 }
 

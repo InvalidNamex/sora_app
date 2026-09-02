@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/models/order_master_model.dart';
 import '../../routes/app_pages.dart';
 import 'order_detail_controller.dart';
+import '../auth/auth_controller.dart';
 
 class OrderDetailView extends GetView<OrderDetailController> {
   const OrderDetailView({super.key});
@@ -167,6 +168,7 @@ class OrderDetailView extends GetView<OrderDetailController> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final d = controller.details[index];
+                    final existingReturn = controller.returnFor(d.id);
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -184,13 +186,40 @@ class OrderDetailView extends GetView<OrderDetailController> {
                           ),
                         ),
                       ),
-                      trailing: Text(
-                        '${AppConstants.currency} ${d.subtotal.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: AppConstants.darkBeige,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+                      trailing: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${AppConstants.currency} ${d.subtotal.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: AppConstants.darkBeige,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (master.orderStatus == 'Delivered')
+                            TextButton(
+                              onPressed: existingReturn == null
+                                  ? () => _showReturnDialog(
+                                      context,
+                                      d.id,
+                                      d.itemName,
+                                    )
+                                  : null,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 28),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: Text(
+                                existingReturn?.status ?? 'request_return'.tr,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
@@ -323,5 +352,142 @@ class OrderDetailView extends GetView<OrderDetailController> {
         );
       }),
     );
+  }
+
+  Future<void> _showReturnDialog(
+    BuildContext context,
+    int detailId,
+    String itemName,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ReturnRequestDialog(
+        controller: controller,
+        detailId: detailId,
+        itemName: itemName,
+      ),
+    );
+    if (result == true && context.mounted) {
+      Get.snackbar('return_submitted'.tr, 'return_submitted_message'.tr);
+    }
+  }
+}
+
+class _ReturnRequestDialog extends StatefulWidget {
+  const _ReturnRequestDialog({
+    required this.controller,
+    required this.detailId,
+    required this.itemName,
+  });
+  final OrderDetailController controller;
+  final int detailId;
+  final String itemName;
+  @override
+  State<_ReturnRequestDialog> createState() => _ReturnRequestDialogState();
+}
+
+class _ReturnRequestDialogState extends State<_ReturnRequestDialog> {
+  late final TextEditingController name = TextEditingController(
+    text: AuthController.to.currentUser.value?.name ?? '',
+  );
+  late final TextEditingController phone = TextEditingController(
+    text: AuthController.to.currentUser.value?.phone ?? '',
+  );
+  final reason = TextEditingController();
+  bool whatsapp = false;
+  late bool confirmed =
+      name.text.trim().isNotEmpty && phone.text.trim().isNotEmpty;
+  late final bool hadExistingContact = confirmed;
+
+  @override
+  void dispose() {
+    name.dispose();
+    phone.dispose();
+    reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('return_item'.tr),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${'return_for'.tr}: ${widget.itemName}'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              readOnly: confirmed,
+              decoration: InputDecoration(labelText: 'full_name'.tr),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: phone,
+              readOnly: confirmed,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(labelText: 'phone_number'.tr),
+            ),
+            if (hadExistingContact)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: confirmed,
+                onChanged: (v) => setState(() => confirmed = v == true),
+                title: Text('confirm_contact'.tr),
+              ),
+            const SizedBox(height: 4),
+            Text('whatsapp_question'.tr),
+            RadioListTile<bool>(
+              contentPadding: EdgeInsets.zero,
+              value: true,
+              groupValue: whatsapp,
+              onChanged: (v) => setState(() => whatsapp = v == true),
+              title: Text('yes'.tr),
+            ),
+            RadioListTile<bool>(
+              contentPadding: EdgeInsets.zero,
+              value: false,
+              groupValue: whatsapp,
+              onChanged: (v) => setState(() => whatsapp = v == true),
+              title: Text('no'.tr),
+            ),
+            TextField(
+              controller: reason,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'return_reason'.tr,
+                hintText: 'return_reason_hint'.tr,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('cancel'.tr),
+        ),
+        FilledButton(onPressed: _submit, child: Text('submit_return'.tr)),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (name.text.trim().isEmpty ||
+        phone.text.trim().isEmpty ||
+        (hadExistingContact && !confirmed) ||
+        reason.text.trim().isEmpty) {
+      Get.snackbar('error'.tr, 'return_required_fields'.tr);
+      return;
+    }
+    await widget.controller.submitReturn(
+      detailId: widget.detailId,
+      name: name.text,
+      phone: phone.text,
+      whatsapp: whatsapp,
+      reason: reason.text,
+    );
+    if (mounted) Navigator.pop(context, true);
   }
 }

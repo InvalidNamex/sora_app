@@ -14,12 +14,16 @@ class LikedItemModel {
   final int? primaryPropertyId;
   final String? primaryImage;
   final double? price;
+  final double? regularPrice;
+  final double discountPercentage;
   final bool inStock;
 
-  String get itemName =>
-      isEnglishLocale() && _itemNameEn.trim().isNotEmpty
-          ? _itemNameEn.trim()
-          : _itemName;
+  bool get hasDiscount =>
+      regularPrice != null && price != null && regularPrice! > price!;
+
+  String get itemName => isEnglishLocale() && _itemNameEn.trim().isNotEmpty
+      ? _itemNameEn.trim()
+      : _itemName;
 
   const LikedItemModel({
     required this.id,
@@ -29,9 +33,11 @@ class LikedItemModel {
     this.primaryPropertyId,
     this.primaryImage,
     this.price,
+    this.regularPrice,
+    this.discountPercentage = 0,
     this.inStock = true,
-  })  : _itemName = itemName,
-        _itemNameEn = itemNameEn;
+  }) : _itemName = itemName,
+       _itemNameEn = itemNameEn;
 
   factory LikedItemModel.fromJson(Map<String, dynamic> json) {
     final item = json['items'] as Map<String, dynamic>? ?? {};
@@ -40,8 +46,11 @@ class LikedItemModel {
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
     final primary = props.firstWhere(
-      (p) => (p['isDefault'] as bool?) ?? false,
-      orElse: () => props.isNotEmpty ? props.first : <String, dynamic>{},
+      (p) => (p['size'] as num?)?.toInt() == 50,
+      orElse: () => props.firstWhere(
+        (p) => (p['isDefault'] as bool?) ?? false,
+        orElse: () => props.isNotEmpty ? props.first : <String, dynamic>{},
+      ),
     );
 
     return LikedItemModel(
@@ -51,8 +60,20 @@ class LikedItemModel {
       itemNameEn: firstNonEmptyString(item, const ['itemNameEN']),
       primaryPropertyId: (primary['id'] as num?)?.toInt(),
       primaryImage: primary['image'] as String?,
-      price: (primary['price'] as num?)?.toDouble(),
+      regularPrice: (primary['price'] as num?)?.toDouble(),
+      discountPercentage:
+          (primary['discountPercentage'] as num?)?.toDouble() ?? 0,
+      price: _salePrice(
+        (primary['price'] as num?)?.toDouble(),
+        (primary['discountPercentage'] as num?)?.toDouble() ?? 0,
+      ),
       inStock: (primary['inStock'] as bool?) ?? true,
     );
+  }
+
+  static double? _salePrice(double? price, double discount) {
+    if (price == null || discount <= 0) return price;
+    final percentage = discount.clamp(0, 100).toDouble();
+    return double.parse((price * (1 - percentage / 100)).toStringAsFixed(2));
   }
 }

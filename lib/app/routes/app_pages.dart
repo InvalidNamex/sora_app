@@ -12,6 +12,8 @@ import '../modules/admin/affiliate_management/affiliate_management_binding.dart'
 import '../modules/admin/affiliate_management/affiliate_management_view.dart';
 import '../modules/admin/catalog_management/catalog_management_binding.dart';
 import '../modules/admin/catalog_management/catalog_management_view.dart';
+import '../modules/admin/home_sections_management/home_sections_management_binding.dart';
+import '../modules/admin/home_sections_management/home_sections_management_view.dart';
 import '../modules/admin/bundle_management/bundle_management_binding.dart';
 import '../modules/admin/bundle_management/bundle_management_view.dart';
 import '../modules/admin/notifications/notifications_binding.dart';
@@ -26,6 +28,8 @@ import '../modules/admin/video_ad_management/video_ad_management_binding.dart';
 import '../modules/admin/video_ad_management/video_ad_management_view.dart';
 import '../modules/admin/feedback/feedback_binding.dart';
 import '../modules/admin/feedback/feedback_view.dart';
+import '../modules/admin/returns/returns_binding.dart';
+import '../modules/admin/returns/returns_view.dart';
 import '../modules/affiliate/affiliate_binding.dart';
 import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
@@ -46,6 +50,7 @@ import '../modules/history/order_review_view.dart';
 import '../modules/location_picker/location_picker_binding.dart';
 import '../modules/location_picker/location_picker_page.dart';
 import '../modules/legal/privacy_policy_view.dart';
+import '../modules/home/catalog_view.dart';
 
 part 'app_routes.dart';
 
@@ -62,6 +67,7 @@ class AppPages {
     ),
     GetPage(name: Routes.auth, page: () => const AuthView()),
     GetPage(name: Routes.home, page: () => const AppScaffold()),
+    GetPage(name: Routes.catalog, page: () => const CatalogView()),
     GetPage(
       name: Routes.item,
       page: () => const ItemView(),
@@ -119,6 +125,12 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminHomeSections,
+      page: () => const HomeSectionsManagementView(),
+      binding: HomeSectionsManagementBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.adminBundles,
       page: () => const BundleManagementView(),
       binding: BundleManagementBinding(),
@@ -152,6 +164,12 @@ class AppPages {
       name: Routes.adminFeedback,
       page: () => const FeedbackView(),
       binding: FeedbackBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminReturns,
+      page: () => const ReturnsView(),
+      binding: ReturnsBinding(),
       middlewares: [AdminGuard()],
     ),
     GetPage(

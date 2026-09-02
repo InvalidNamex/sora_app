@@ -149,12 +149,7 @@ class _NavTiles extends StatelessWidget {
 class _FiltersSection extends StatelessWidget {
   const _FiltersSection();
 
-  static const _genderOptions = [
-    (null, 'all_genders'),
-    (1, 'men'),
-    (2, 'women'),
-    (0, 'unisex'),
-  ];
+  static const _genderOptions = [(1, 'men'), (2, 'women'), (0, 'unisex')];
 
   @override
   Widget build(BuildContext context) {
@@ -162,45 +157,35 @@ class _FiltersSection extends StatelessWidget {
     final ctrl = HomeController.to;
 
     return Obx(() {
-      final selected = ctrl.genderFilter.value;
-      return RadioGroup<int?>(
-        groupValue: selected,
-        onChanged: ctrl.setGenderFilter,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                'gender_filter'.tr,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'gender_filter'.tr,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
-            for (final opt in _genderOptions)
-              ListTile(
-                dense: true,
-                leading: Radio<int?>(
-                  value: opt.$1,
-                  activeColor: AppConstants.darkBeige,
-                ),
-                title: Text(opt.$2.tr, style: const TextStyle(fontSize: 13)),
-                onTap: () => ctrl.setGenderFilter(opt.$1),
-              ),
+          ),
+          for (final opt in _genderOptions)
             CheckboxListTile(
               dense: true,
-              value: ctrl.inStockOnly.value,
+              value: ctrl.genderFilters.value.contains(opt.$1),
               activeColor: AppConstants.darkBeige,
-              title: Text(
-                'in_stock_only'.tr,
-                style: const TextStyle(fontSize: 13),
-              ),
-              onChanged: (v) => ctrl.setInStockOnly(v ?? false),
+              title: Text(opt.$2.tr, style: const TextStyle(fontSize: 13)),
+              onChanged: (_) => ctrl.toggleGenderFilter(opt.$1),
             ),
-          ],
-        ),
+          CheckboxListTile(
+            dense: true,
+            value: ctrl.inStockOnly.value,
+            activeColor: AppConstants.darkBeige,
+            title: Text(
+              'in_stock_only'.tr,
+              style: const TextStyle(fontSize: 13),
+            ),
+            onChanged: (v) => ctrl.setInStockOnly(v ?? false),
+          ),
+        ],
       );
     });
   }

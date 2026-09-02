@@ -184,7 +184,10 @@ class _VideoAdCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   Text(
-                    ad.videoUrl,
+                    [
+                      if (ad.hasVideo) 'Video',
+                      if (ad.hasBanner) 'Banner',
+                    ].join(' + '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -255,10 +258,64 @@ class _VideoAdEditorDialog extends GetView<VideoAdManagementController> {
                       controller: controller.urlCtrl,
                       keyboardType: TextInputType.url,
                       decoration: const InputDecoration(
-                        labelText: 'Video URL',
+                        labelText: 'Video URL (optional)',
                         prefixIcon: Icon(Icons.link),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    Obx(() {
+                      final bytes = controller.pickedBannerBytes.value;
+                      final existing = controller.existingBannerUrl.value;
+                      final hasBanner =
+                          bytes != null ||
+                          (existing.isNotEmpty &&
+                              !controller.clearExistingBanner.value);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: controller.pickBanner,
+                            icon: const Icon(Icons.upload_file_outlined),
+                            label: Text(
+                              bytes != null
+                                  ? 'Replace banner (${controller.pickedBannerName.value})'
+                                  : hasBanner
+                                  ? 'Replace banner'
+                                  : 'Upload banner (optional)',
+                            ),
+                          ),
+                          if (hasBanner) ...[
+                            const SizedBox(height: 8),
+                            if (bytes != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  bytes,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              Text(
+                                'A banner is currently attached.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  controller.pickedBannerBytes.value = null;
+                                  controller.pickedBannerName.value = '';
+                                  controller.clearExistingBanner.value = true;
+                                },
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Remove banner'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    }),
                     const SizedBox(height: 16),
                     Obx(
                       () => SegmentedButton<bool>(
@@ -292,7 +349,7 @@ class _VideoAdEditorDialog extends GetView<VideoAdManagementController> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 8),
@@ -302,7 +359,7 @@ class _VideoAdEditorDialog extends GetView<VideoAdManagementController> {
                           ? null
                           : () async {
                               final saved = await controller.save();
-                              if (saved && Get.isDialogOpen == true) Get.back();
+                              if (saved && Get.isDialogOpen == true) Navigator.of(context).pop();
                             },
                       icon: controller.isSaving.value
                           ? const SizedBox(

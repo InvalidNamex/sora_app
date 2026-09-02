@@ -151,14 +151,11 @@ class _GlassVeraButton extends StatelessWidget {
               ),
             ],
           ),
-          child: 
-              Icon(
-                Icons.auto_awesome_rounded,
-                color: dark ? Colors.white : AppConstants.darkBeige,
-                size: 27,
-              ),
-              
-            
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            color: dark ? Colors.white : AppConstants.darkBeige,
+            size: 27,
+          ),
         ),
       ),
     );
@@ -459,14 +456,39 @@ class _RecommendationCard extends GetView<VeraController> {
                 )
               else if (property != null)
                 Expanded(
-                  child: Text(
-                    '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: property.hasDiscount
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                                fontSize: 11,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${AppConstants.currency} ${property.salePrice.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          '${AppConstants.currency} ${property.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 )
               else
                 const Spacer(),

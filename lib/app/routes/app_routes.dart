@@ -4,6 +4,7 @@ abstract class Routes {
   static const splash = '/splash';
   static const auth = '/auth';
   static const home = '/home';
+  static const catalog = '/catalog';
   static const item = '/item';
   static const itemDetail = '/item/:id';
   static const checkout = '/checkout';
@@ -17,12 +18,14 @@ abstract class Routes {
   static const adminOrders = '/admin-orders';
   static const adminAffiliates = '/admin-affiliates';
   static const adminCatalog = '/admin-catalog';
+  static const adminHomeSections = '/admin-home-sections';
   static const adminBundles = '/admin-bundles';
   static const adminReports = '/admin-reports';
   static const adminVideoAds = '/admin-video-ads';
   static const adminNotifications = '/admin-notifications';
   static const adminItemSuggestions = '/admin-item-suggestions';
   static const adminFeedback = '/admin-feedback';
+  static const adminReturns = '/admin-returns';
   static const affiliateDashboard = '/affiliate';
   static const locationPicker = '/location-picker';
   static const bundleDetail = '/bundle/:id';

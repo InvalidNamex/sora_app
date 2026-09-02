@@ -37,30 +37,6 @@ class CategoryStrip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Category row ──────────────────────────────────────────────
-        SizedBox(
-          height: categoryRowHeight,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              _CategoryTile(
-                label: 'all'.tr,
-                imageUrl: null,
-                selected: selectedCategoryId == null,
-                onTap: () => onCategoryTap(null),
-              ),
-              ...categories.map(
-                (c) => _CategoryTile(
-                  label: c.categoryName,
-                  imageUrl: c.categoryImage,
-                  selected: selectedCategoryId == c.id,
-                  onTap: () => onCategoryTap(c.id),
-                ),
-              ),
-            ],
-          ),
-        ),
 
         if (categories.isEmpty)
           Padding(

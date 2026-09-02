@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/admin_notification_model.dart';
 import '../../../core/models/in_app_message_model.dart';
 import '../../../core/utils/responsive.dart';
 import 'notifications_controller.dart';
@@ -42,6 +43,8 @@ class NotificationsView extends GetView<NotificationsController> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _AdminInboxSection(controller: controller),
+              const SizedBox(height: 12),
               _SectionCard(
                 title: 'Audience Filters',
                 child: Column(
@@ -161,11 +164,93 @@ class NotificationsView extends GetView<NotificationsController> {
   }
 }
 
+class _AdminInboxSection extends StatelessWidget {
+  const _AdminInboxSection({required this.controller});
+
+  final NotificationsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = controller.adminNotifications;
+    return _SectionCard(
+      title: controller.unreadAdminNotificationCount == 0
+          ? 'Admin Inbox'
+          : 'Admin Inbox (${controller.unreadAdminNotificationCount} unread)',
+      trailing: IconButton(
+        tooltip: 'Refresh inbox',
+        onPressed: controller.loadAdminNotifications,
+        icon: const Icon(Icons.refresh),
+      ),
+      child: Obx(() {
+        if (controller.isLoadingAdminNotifications.value &&
+            notifications.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (notifications.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('No admin notifications yet.'),
+          );
+        }
+        return Column(
+          children: notifications
+              .map(
+                (notification) => _AdminNotificationTile(
+                  notification: notification,
+                  onTap: () => controller.openAdminNotification(notification),
+                ),
+              )
+              .toList(growable: false),
+        );
+      }),
+    );
+  }
+}
+
+class _AdminNotificationTile extends StatelessWidget {
+  const _AdminNotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  final AdminNotificationModel notification;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUrgent =
+        notification.eventType == 'admin_low_rating_received' ||
+        notification.eventType == 'admin_low_product_rating_received';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        isUrgent ? Icons.warning_amber_rounded : Icons.notifications_outlined,
+        color: isUrgent ? Colors.orange.shade700 : AppConstants.darkBeige,
+      ),
+      title: Text(
+        notification.title,
+        style: TextStyle(
+          fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(notification.body),
+      trailing: notification.isRead
+          ? null
+          : const Icon(Icons.circle, size: 9, color: AppConstants.darkBeige),
+      onTap: onTap,
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
+  const _SectionCard({required this.title, required this.child, this.trailing});
 
   final String title;
   final Widget child;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +261,17 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                ?trailing,
+              ],
+            ),
             const SizedBox(height: 8),
             child,
           ],

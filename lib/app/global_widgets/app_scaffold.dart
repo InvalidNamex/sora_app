@@ -5,12 +5,14 @@ import 'package:get/get.dart';
 import '../core/constants/app_constants.dart';
 import '../core/utils/responsive.dart';
 import '../modules/cart/cart_controller.dart';
+import '../modules/admin/notifications/admin_notification_inbox_controller.dart';
 import '../modules/cart/cart_view.dart';
 import '../modules/contact/contact_view.dart';
 import '../modules/history/history_view.dart';
 import '../modules/home/home_view.dart';
 import '../modules/navigation/nav_controller.dart';
 import '../modules/profile/profile_view.dart';
+import '../routes/app_pages.dart';
 import 'app_drawer.dart';
 import 'vera_assistant_overlay.dart';
 
@@ -111,12 +113,8 @@ class AppScaffold extends GetView<NavController> {
 
 // ── Desktop top nav ──────────────────────────────────────────────────────────
 
-class _DesktopAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _DesktopAppBar({
-    required this.currentIndex,
-    required this.cartCount,
-  });
+class _DesktopAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _DesktopAppBar({required this.currentIndex, required this.cartCount});
 
   final int currentIndex;
   final int cartCount;
@@ -138,6 +136,7 @@ class _DesktopAppBar extends StatelessWidget
       titleSpacing: 16,
       title: Image.asset(AppConstants.logoPath, height: 38),
       actions: [
+        const _AdminNotificationButton(),
         for (int i = 0; i < labels.length; i++)
           _DesktopNavButton(
             label: i == 1 && cartCount > 0
@@ -149,6 +148,29 @@ class _DesktopAppBar extends StatelessWidget
         const SizedBox(width: 16),
       ],
     );
+  }
+}
+
+class _AdminNotificationButton extends StatelessWidget {
+  const _AdminNotificationButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final inbox = AdminNotificationInboxController.to;
+    return Obx(() {
+      if (!inbox.isAdmin) return const SizedBox.shrink();
+      final unread = inbox.unreadCount;
+      return IconButton(
+        tooltip: 'Admin notifications',
+        icon: Badge.count(
+          count: unread,
+          isLabelVisible: unread > 0,
+          backgroundColor: Colors.redAccent,
+          child: const Icon(Icons.notifications_outlined),
+        ),
+        onPressed: () => Get.toNamed(Routes.adminNotifications),
+      );
+    });
   }
 }
 
@@ -262,9 +284,14 @@ class _MobileBottomNav extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeInOut,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppConstants.darkBeige : Colors.transparent,
+                  color: isSelected
+                      ? AppConstants.darkBeige
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(

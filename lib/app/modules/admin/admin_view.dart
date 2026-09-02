@@ -79,15 +79,14 @@ class AdminView extends GetView<AdminController> {
                             .toList(),
                       );
                     }
-                    return Row(
-                      children: tiles
-                          .map(
-                            (t) => Padding(
-                              padding: const EdgeInsets.all(3),
-                              child: t,
-                            ),
-                          )
-                          .toList(),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var index = 0; index < tiles.length; index++) ...[
+                          if (index > 0) const SizedBox(height: 8),
+                          tiles[index],
+                        ],
+                      ],
                     );
                   },
                 ),
@@ -118,6 +117,12 @@ class AdminView extends GetView<AdminController> {
                 ),
                 const SizedBox(height: 10),
                 _NavTile(
+                  icon: Icons.view_carousel_outlined,
+                  title: 'home_sections'.tr,
+                  onTap: () => Get.toNamed(Routes.adminHomeSections),
+                ),
+                const SizedBox(height: 10),
+                _NavTile(
                   icon: Icons.all_inbox_outlined,
                   title: 'bundle_management'.tr,
                   onTap: () => Get.toNamed(Routes.adminBundles),
@@ -125,7 +130,7 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 10),
                 _NavTile(
                   icon: Icons.smart_display_outlined,
-                  title: 'Video Ads',
+                  title: 'video_ads'.tr,
                   onTap: () => Get.toNamed(Routes.adminVideoAds),
                 ),
                 const SizedBox(height: 10),
@@ -142,6 +147,12 @@ class AdminView extends GetView<AdminController> {
                 ),
                 const SizedBox(height: 10),
                 _NavTile(
+                  icon: Icons.assignment_return_outlined,
+                  title: 'return_requests'.tr,
+                  onTap: () => Get.toNamed(Routes.adminReturns),
+                ),
+                const SizedBox(height: 10),
+                _NavTile(
                   icon: Icons.bar_chart,
                   title: 'reports'.tr,
                   onTap: () => Get.toNamed(Routes.adminReports),
@@ -149,7 +160,7 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 10),
                 _NavTile(
                   icon: Icons.notifications_active_outlined,
-                  title: 'Notifications Center',
+                  title: 'notifications_center'.tr,
                   onTap: () => Get.toNamed(Routes.adminNotifications),
                 ),
               ],

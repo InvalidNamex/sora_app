@@ -16,7 +16,75 @@ class CatalogManagementController extends GetxController {
   final items = <ItemModel>[].obs;
   final properties = <ItemPropertyModel>[].obs;
 
+  final categorySearch = ''.obs;
+  final subCategorySearch = ''.obs;
+  final itemSearch = ''.obs;
+  final propertySearch = ''.obs;
+
   final isLoading = true.obs;
+
+  List<CategoryModel> get filteredCategories => categories
+      .where(
+        (category) => _matches(categorySearch.value, [
+          category.nameAr,
+          category.nameEn,
+          category.id.toString(),
+        ]),
+      )
+      .toList(growable: false);
+
+  List<SubCategoryModel> get filteredSubCategories => subCategories
+      .where(
+        (subCategory) => _matches(subCategorySearch.value, [
+          subCategory.nameAr,
+          subCategory.nameEn,
+          subCategory.id.toString(),
+          subCategory.categoryId.toString(),
+        ]),
+      )
+      .toList(growable: false);
+
+  List<ItemModel> get filteredItems => items
+      .where(
+        (item) => _matches(itemSearch.value, [
+          item.nameAr,
+          item.nameEn,
+          item.brandName,
+          item.id.toString(),
+        ]),
+      )
+      .toList(growable: false);
+
+  Map<int, List<ItemPropertyModel>> get groupedFilteredProperties {
+    final groups = <int, List<ItemPropertyModel>>{};
+    for (final property in properties) {
+      final item = itemForId(property.itemId);
+      if (!_matches(propertySearch.value, [
+        item?.nameAr ?? '',
+        item?.nameEn ?? '',
+        item?.brandName ?? '',
+        property.itemId.toString(),
+        property.id.toString(),
+        property.sizeMl.toString(),
+      ])) {
+        continue;
+      }
+      groups.putIfAbsent(property.itemId, () => []).add(property);
+    }
+    for (final group in groups.values) {
+      group.sort((left, right) => left.sizeMl.compareTo(right.sizeMl));
+    }
+    return groups;
+  }
+
+  ItemModel? itemForId(int id) =>
+      items.firstWhereOrNull((item) => item.id == id);
+
+  static bool _matches(String query, Iterable<String> values) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return true;
+    return values.any((value) => value.toLowerCase().contains(normalized));
+  }
 
   @override
   void onReady() {
