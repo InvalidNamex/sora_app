@@ -105,11 +105,12 @@ class DeepLinkService extends GetxService {
       case 'item':
         final itemId = _idFrom(segments, uri);
         if (itemId == null) return false;
+        final propertyId = _positiveInt(uri.queryParameters['property']);
         await AffiliateProgramService.captureLinkCode(
           uri.queryParameters['ref'],
           itemId: itemId,
         );
-        await _openRoute(Routes.itemPath(itemId));
+        await _openRoute(Routes.itemPath(itemId, propertyId: propertyId));
         return true;
       case 'bundle':
         final bundleId = _idFrom(segments, uri);
@@ -165,9 +166,13 @@ class DeepLinkService extends GetxService {
 
   int? _idFrom(List<String> segments, Uri uri) {
     final rawId = segments.length > 1 ? segments[1] : uri.queryParameters['id'];
-    if (rawId == null) return null;
-    final id = int.tryParse(rawId);
-    return id != null && id > 0 ? id : null;
+    return _positiveInt(rawId);
+  }
+
+  int? _positiveInt(String? value) {
+    if (value == null) return null;
+    final parsed = int.tryParse(value);
+    return parsed != null && parsed > 0 ? parsed : null;
   }
 
   bool _isDuplicate(Uri uri) {

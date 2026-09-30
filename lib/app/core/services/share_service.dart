@@ -6,22 +6,32 @@ import '../constants/app_constants.dart';
 class ShareService {
   ShareService._();
 
-  static Uri itemLink(int itemId, {String? affiliateCode}) {
+  static Uri itemLink(int itemId, {int? propertyId, String? affiliateCode}) {
     final code = affiliateCode?.trim().toUpperCase() ?? '';
+    final queryParameters = <String, String>{};
+    if (propertyId != null && propertyId > 0) {
+      queryParameters['property'] = '$propertyId';
+    }
+    if (code.isNotEmpty) queryParameters['ref'] = code;
     return Uri.parse(AppConstants.baseDomain).replace(
       path: '/item/$itemId',
-      queryParameters: code.isEmpty ? null : {'ref': code},
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
   }
 
   static Future<ShareResult> shareItem({
     required BuildContext context,
     required int itemId,
+    int? propertyId,
     required String itemName,
     required String message,
     String? affiliateCode,
   }) {
-    final link = itemLink(itemId, affiliateCode: affiliateCode);
+    final link = itemLink(
+      itemId,
+      propertyId: propertyId,
+      affiliateCode: affiliateCode,
+    );
     final renderBox = context.findRenderObject() as RenderBox?;
     final shareOrigin = renderBox != null && renderBox.hasSize
         ? renderBox.localToGlobal(Offset.zero) & renderBox.size

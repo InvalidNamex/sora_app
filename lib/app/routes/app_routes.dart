@@ -32,7 +32,14 @@ abstract class Routes {
   static const privacyPolicy = '/privacy_policy';
   static const accountDeletion = '/delete-account';
 
-  static String itemPath(int id) => '/item/$id';
+  static String itemPath(int id, {int? propertyId}) {
+    return Uri(
+      path: '/item/$id',
+      queryParameters: propertyId != null && propertyId > 0
+          ? {'property': '$propertyId'}
+          : null,
+    ).toString();
+  }
   static String bundlePath(int id) => '/bundle/$id';
   static String orderDetailPath(int id) => '/orders/$id';
   static String orderReviewPath(int id) => '/orders/$id/review';

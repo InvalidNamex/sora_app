@@ -19,7 +19,9 @@ class ItemController extends GetxController {
   static ItemController get to => Get.find();
 
   late final int _itemId;
+  late final int? _requestedPropertyId;
   late final String heroTag;
+  bool _hasUserSelectedProperty = false;
 
   final item = Rxn<ItemModel>();
   final properties = <ItemPropertyModel>[].obs;
@@ -54,7 +56,14 @@ class ItemController extends GetxController {
     super.onInit();
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     final rawItemId = args['itemId'] ?? Get.parameters['id'];
+    final rawPropertyId = args['propertyId'] ?? Get.parameters['property'];
     _itemId = rawItemId is int ? rawItemId : int.tryParse('$rawItemId') ?? 0;
+    final parsedPropertyId = rawPropertyId is int
+        ? rawPropertyId
+        : int.tryParse('$rawPropertyId');
+    _requestedPropertyId = parsedPropertyId != null && parsedPropertyId > 0
+        ? parsedPropertyId
+        : null;
     heroTag = (args['heroTag'] as String?) ?? 'hero_item_$_itemId';
   }
 
@@ -87,10 +96,13 @@ class ItemController extends GetxController {
             )
             .toList(growable: false)
           ..sort((left, right) => left.sizeMl.compareTo(right.sizeMl));
-    final restoredIndex = selectedPropertyId == null
+    final propertyIdToRestore = _hasUserSelectedProperty
+        ? selectedPropertyId
+        : _requestedPropertyId ?? selectedPropertyId;
+    final restoredIndex = propertyIdToRestore == null
         ? -1
         : properties.indexWhere(
-            (property) => property.id == selectedPropertyId,
+            (property) => property.id == propertyIdToRestore,
           );
     if (restoredIndex >= 0) {
       selectedPropertyIndex.value = restoredIndex;
@@ -139,7 +151,10 @@ class ItemController extends GetxController {
 
   Future<void> refreshItem() => _fetchItem();
 
-  void selectProperty(int index) => selectedPropertyIndex.value = index;
+  void selectProperty(int index) {
+    _hasUserSelectedProperty = true;
+    selectedPropertyIndex.value = index;
+  }
 
   Future<void> handleCartAction() async {
     if (selectedPropertyInCart) {
@@ -211,6 +226,7 @@ class ItemController extends GetxController {
       await ShareService.shareItem(
         context: context,
         itemId: currentItem.id,
+        propertyId: selectedProperty?.id,
         itemName: currentItem.itemName,
         message: 'share_item_message'.trParams({'item': currentItem.itemName}),
         affiliateCode: affiliateCode,
