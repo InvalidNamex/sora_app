@@ -24,13 +24,19 @@ abstract class Routes {
   static const adminVideoAds = '/admin-video-ads';
   static const adminNotifications = '/admin-notifications';
   static const adminItemSuggestions = '/admin-item-suggestions';
+  static const adminInventory = '/admin-inventory';
   static const adminFeedback = '/admin-feedback';
   static const adminReturns = '/admin-returns';
+  static const adminSupport = '/admin-support';
+  static const adminSupportChat = '/admin-support/:id';
   static const affiliateDashboard = '/affiliate';
   static const locationPicker = '/location-picker';
   static const bundleDetail = '/bundle/:id';
   static const privacyPolicy = '/privacy_policy';
   static const accountDeletion = '/delete-account';
+  static const support = '/support';
+  static const supportChat = '/support/:id';
+  static const suggestProduct = '/suggest-product';
 
   static String itemPath(int id, {int? propertyId}) {
     return Uri(
@@ -40,8 +46,11 @@ abstract class Routes {
           : null,
     ).toString();
   }
+
   static String bundlePath(int id) => '/bundle/$id';
   static String orderDetailPath(int id) => '/orders/$id';
   static String orderReviewPath(int id) => '/orders/$id/review';
   static String affiliateRefPath(String uid) => '/ref/$uid';
+  static String supportChatPath(String id) => '/support/$id';
+  static String adminSupportChatPath(String id) => '/admin-support/$id';
 }

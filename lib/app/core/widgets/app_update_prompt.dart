@@ -15,10 +15,12 @@ class AppUpdatePrompt extends StatefulWidget {
   const AppUpdatePrompt({
     super.key,
     required this.languageCode,
+    required this.navigatorKey,
     required this.child,
   });
 
   final String languageCode;
+  final GlobalKey<NavigatorState> navigatorKey;
   final Widget child;
 
   @override
@@ -82,6 +84,10 @@ class _AppUpdatePromptState extends State<AppUpdatePrompt> {
 
     return UpgradeAlert(
       upgrader: upgrader,
+      // MaterialApp's builder is above its Navigator in the widget tree. Give
+      // upgrader the root key so showDialog uses the Navigator's own context
+      // instead of this ancestor context.
+      navigatorKey: widget.navigatorKey,
       barrierDismissible: false,
       showIgnore: false,
       showLater: true,

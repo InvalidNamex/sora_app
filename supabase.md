@@ -66,6 +66,32 @@ implementation:
 * propertyDescription text
 * price float8
 * inStock bool default to true
+* stockQuantity int4 non-negative; `inStock` is derived from whether this is
+  greater than zero
+
+## Inventory and purchasing
+
+Migration `20260927090000_inventory_purchasing.sql` adds the stock ledger,
+vendors, vendor-specific item codes, purchase invoices, and reporting RPC.
+
+* Moving an order into `Shipped`, `Out for delivery`, or `Delivered` deducts
+  its item quantities once. Moving it to `Returned` restores only stock that
+  this ledger previously deducted. Cancellation after allocation also restores
+  the stock.
+* Purchase invoices are received atomically: the invoice header and lines,
+  per-line percentage discount, vendor code/last cost, stock increase, and
+  audit movements either all succeed or all roll back.
+* `item_properties.inStock` is synchronized from `stockQuantity` by a database
+  trigger. Existing `inStock=true` rows start at quantity 1 so deployment does
+  not immediately hide the existing catalogue; reconcile real opening counts
+  from the Inventory & Purchasing admin screen after migration.
+* Inventory administration tables use RLS and are service-role-only. The
+  `manage-inventory` Edge Function verifies the caller's Firebase token and
+  checks `users.isAdmin` before it uses the service role.
+
+The migration and `manage-inventory` function were deployed on 27 September
+2026. The function uses the existing Firebase admin and Supabase service-role
+secrets; none of those secrets belong in Flutter source.
 
 **table cart:**
 * id int8 primary

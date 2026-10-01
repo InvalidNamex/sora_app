@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
@@ -51,6 +52,21 @@ Future<void> _bootstrap() async {
   await dotenv.load(fileName: '.env');
   await GetStorage.init();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  final supportsNativeAppCheck =
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+  if (supportsNativeAppCheck) {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleDeviceCheckProvider(),
+    );
+  }
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
@@ -62,25 +78,33 @@ Future<void> _bootstrap() async {
   runApp(SentryWidget(child: SoraApp(settings: settings)));
 }
 
-class SoraApp extends StatelessWidget {
+class SoraApp extends StatefulWidget {
   const SoraApp({super.key, required this.settings});
 
   final SettingsController settings;
 
   @override
+  State<SoraApp> createState() => _SoraAppState();
+}
+
+class _SoraAppState extends State<SoraApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
-      settings.localeCode.value;
-      settings.isDark.value;
+      widget.settings.localeCode.value;
+      widget.settings.isDark.value;
 
       return GetMaterialApp(
+        navigatorKey: _navigatorKey,
         title: 'Sora',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        themeMode: settings.themeMode,
+        themeMode: widget.settings.themeMode,
         translations: AppTranslations(),
-        locale: settings.locale,
+        locale: widget.settings.locale,
         fallbackLocale: const Locale('en'),
         supportedLocales: const [Locale('ar'), Locale('en')],
         localizationsDelegates: const [
@@ -91,7 +115,8 @@ class SoraApp extends StatelessWidget {
         initialRoute: AppPages.initial,
         getPages: AppPages.routes,
         builder: (context, child) => AppUpdatePrompt(
-          languageCode: settings.localeCode.value,
+          languageCode: widget.settings.localeCode.value,
+          navigatorKey: _navigatorKey,
           child: child ?? const SizedBox.shrink(),
         ),
       );

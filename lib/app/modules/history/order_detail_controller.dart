@@ -70,8 +70,9 @@ class OrderDetailController extends GetxController {
 
   ReturnRequestModel? returnFor(int detailId) {
     for (final request in returnRequests) {
-      if (request.orderDetailId == detailId && request.status != 'Cancelled')
+      if (request.orderDetailId == detailId && request.status != 'Cancelled') {
         return request;
+      }
     }
     return null;
   }

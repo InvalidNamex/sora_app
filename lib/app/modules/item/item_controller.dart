@@ -219,9 +219,24 @@ class ItemController extends GetxController {
     final user = AuthController.to.currentUser.value;
 
     try {
-      final affiliateCode = user?.isAffiliate == true
-          ? (await AffiliateProgramService.getMyProfile()).code
-          : null;
+      String? affiliateCode;
+      if (user?.isAffiliate == true) {
+        try {
+          affiliateCode = (await AffiliateProgramService.getMyProfile()).code;
+        } on AffiliateProgramException catch (e) {
+          if (e.message.toLowerCase().contains('affiliate code not found')) {
+            _showAffiliateCodeRequired();
+            return;
+          }
+          rethrow;
+        }
+
+        if (affiliateCode.trim().isEmpty) {
+          _showAffiliateCodeRequired();
+          return;
+        }
+      }
+
       if (!context.mounted) return;
       await ShareService.shareItem(
         context: context,
@@ -239,6 +254,14 @@ class ItemController extends GetxController {
         type: AppSnackbarType.error,
       );
     }
+  }
+
+  void _showAffiliateCodeRequired() {
+    AppSnackbar.show(
+      'affiliate_code_required'.tr,
+      'set_affiliate_code_before_sharing'.tr,
+      type: AppSnackbarType.warning,
+    );
   }
 
   Future<void> pulseCartFab() async {

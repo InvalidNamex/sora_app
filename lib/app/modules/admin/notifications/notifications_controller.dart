@@ -28,6 +28,8 @@ class NotificationsController extends GetxController {
 
   final campaignTitleCtrl = TextEditingController();
   final campaignBodyCtrl = TextEditingController();
+  final campaignTitleArCtrl = TextEditingController();
+  final campaignBodyArCtrl = TextEditingController();
   final campaignUrlCtrl = TextEditingController();
   final inAppTitleCtrl = TextEditingController();
   final inAppBodyCtrl = TextEditingController();
@@ -84,6 +86,8 @@ class NotificationsController extends GetxController {
   void onClose() {
     campaignTitleCtrl.dispose();
     campaignBodyCtrl.dispose();
+    campaignTitleArCtrl.dispose();
+    campaignBodyArCtrl.dispose();
     campaignUrlCtrl.dispose();
     for (final textController in _inAppControllers) {
       textController
@@ -132,6 +136,18 @@ class NotificationsController extends GetxController {
     );
   }
 
+  Future<void> dismissAdminNotification(
+    AdminNotificationModel notification,
+  ) async {
+    adminNotifications.removeWhere((item) => item.id == notification.id);
+    try {
+      await AdminNotificationService.dismiss(notification.id);
+    } catch (e) {
+      debugPrint('[NotificationsController] dismiss notification error: $e');
+      await loadAdminNotifications();
+    }
+  }
+
   Future<void> loadItems() async {
     isLoadingItems.value = true;
     try {
@@ -155,14 +171,24 @@ class NotificationsController extends GetxController {
   }
 
   Future<void> sendManualCampaign() async {
-    final title = campaignTitleCtrl.text.trim();
-    final body = campaignBodyCtrl.text.trim();
+    final titleEn = campaignTitleCtrl.text.trim();
+    final bodyEn = campaignBodyCtrl.text.trim();
+    final titleAr = campaignTitleArCtrl.text.trim();
+    final bodyAr = campaignBodyArCtrl.text.trim();
     final targetUrl = campaignUrlCtrl.text.trim();
 
-    if (title.isEmpty || body.isEmpty) {
+    final missingRequiredCopy = arabicOnly.value
+        ? titleAr.isEmpty || bodyAr.isEmpty
+        : titleEn.isEmpty ||
+              bodyEn.isEmpty ||
+              titleAr.isEmpty ||
+              bodyAr.isEmpty;
+    if (missingRequiredCopy) {
       AppSnackbar.show(
         'Missing data',
-        'Please provide both title and message body.',
+        arabicOnly.value
+            ? 'Please provide the Arabic title and message body.'
+            : 'Please provide both English and Arabic notification copy.',
         type: AppSnackbarType.warning,
       );
       return;
@@ -179,9 +205,15 @@ class NotificationsController extends GetxController {
 
     await _enqueueNotificationJob(
       eventType: 'manual_campaign',
-      title: title,
-      body: body,
-      payload: {if (targetUrl.isNotEmpty) 'deep_link': targetUrl},
+      title: arabicOnly.value ? titleAr : titleEn,
+      body: arabicOnly.value ? bodyAr : bodyEn,
+      payload: {
+        'title_en': titleEn,
+        'body_en': bodyEn,
+        'title_ar': titleAr,
+        'body_ar': bodyAr,
+        if (targetUrl.isNotEmpty) 'deep_link': targetUrl,
+      },
     );
   }
 
@@ -432,7 +464,12 @@ class NotificationsController extends GetxController {
       body: item == null
           ? 'Check our new featured item now.'
           : 'Now featured: ${item.itemName}',
-      payload: {'item_id': itemId, 'deep_link': '/item/$itemId'},
+      payload: {
+        'item_id': itemId,
+        if (item != null) 'item_name_ar': item.nameAr,
+        if (item != null) 'item_name_en': item.nameEn,
+        'deep_link': '/item/$itemId',
+      },
     );
   }
 

@@ -109,5 +109,7 @@
 		<string>Sora lets authorized administrators select photos for product, category, notification, and bundle images.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Sora uses your location to center the delivery map near you.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Sora uses your location to help provide accurate delivery and map services.</string>
 	</dict>
 </plist>

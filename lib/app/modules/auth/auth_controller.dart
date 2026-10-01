@@ -13,6 +13,7 @@ import '../../core/services/supabase_service.dart';
 import '../../core/services/deep_link_service.dart';
 import '../../core/services/affiliate_program_service.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/support_chat_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../navigation/nav_controller.dart';
 import '../../routes/app_pages.dart';
@@ -47,6 +48,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   bool _hasScheduledFcmRetry = false;
   bool _phoneOtpRequestActive = false;
   Future<void>? _supabaseRoleSync;
+  String? _pendingAnonymousSupportToken;
   int _fcmRetryAttempts = 0;
   static const int _maxFcmRetryAttempts = 5;
 
@@ -90,7 +92,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
   Future<void> refreshCurrentUser() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null || user.isAnonymous) return;
 
     try {
       final result = await SupabaseService.client
@@ -145,7 +147,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _onFirebaseAuthState(fb.User? user) async {
-    if (user == null) {
+    if (user == null || user.isAnonymous) {
       currentUser.value = null;
       return;
     }
@@ -161,6 +163,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
             .maybeSingle();
         if (result != null && result['isDeleted'] != true) {
           currentUser.value = UserModel.fromJson(result);
+          if (currentUser.value?.isAdmin == true) {
+            unawaited(SupportChatService.registerNotifications());
+          }
           unawaited(AffiliateProgramService.syncPendingAttribution());
         } else if (result?['isDeleted'] == true) {
           currentUser.value = null;
@@ -180,7 +185,23 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       fb.UserCredential result;
 
       if (kIsWeb) {
-        result = await _auth.signInWithPopup(fb.GoogleAuthProvider());
+        final provider = fb.GoogleAuthProvider();
+        final anonymousUser = _auth.currentUser?.isAnonymous == true
+            ? _auth.currentUser
+            : null;
+        final anonymousToken = await anonymousUser?.getIdToken();
+        try {
+          result = anonymousUser == null
+              ? await _auth.signInWithPopup(provider)
+              : await anonymousUser.linkWithPopup(provider);
+        } on fb.FirebaseAuthException catch (error) {
+          if (anonymousToken == null ||
+              !_credentialBelongsToExistingUser(error)) {
+            rethrow;
+          }
+          result = await _auth.signInWithPopup(provider);
+          await SupportChatService.transferGuestSession(anonymousToken);
+        }
       } else {
         final googleUser = await _nativeGoogleSignIn.signIn();
         if (googleUser == null) return; // user cancelled
@@ -194,7 +215,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           idToken: idToken,
           accessToken: auth.accessToken,
         );
-        result = await _auth.signInWithCredential(credential);
+        result = await _signInWithCredentialPreservingSupport(credential);
       }
 
       final user = result.user;
@@ -227,7 +248,23 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       final provider = fb.AppleAuthProvider()
         ..addScope('email')
         ..addScope('name');
-      final result = await _auth.signInWithProvider(provider);
+      late final fb.UserCredential result;
+      final anonymousUser = _auth.currentUser?.isAnonymous == true
+          ? _auth.currentUser
+          : null;
+      final anonymousToken = await anonymousUser?.getIdToken();
+      try {
+        result = anonymousUser == null
+            ? await _auth.signInWithProvider(provider)
+            : await anonymousUser.linkWithProvider(provider);
+      } on fb.FirebaseAuthException catch (error) {
+        if (anonymousToken == null ||
+            !_credentialBelongsToExistingUser(error)) {
+          rethrow;
+        }
+        result = await _auth.signInWithProvider(provider);
+        await SupportChatService.transferGuestSession(anonymousToken);
+      }
       final user = result.user;
       if (user == null) {
         throw Exception(
@@ -280,6 +317,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       otpStatusMessage.value = '';
 
       if (kIsWeb) {
+        if (_auth.currentUser?.isAnonymous == true) {
+          _pendingAnonymousSupportToken = await _auth.currentUser?.getIdToken();
+        }
         final confirmationResult = await _auth.signInWithPhoneNumber(
           phoneNumber,
         );
@@ -300,7 +340,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           // Auto-retrieved on Android — no OTP sheet interaction needed.
           if (!_phoneOtpRequestActive) return;
           try {
-            final result = await _auth.signInWithCredential(credential);
+            final result = await _signInWithCredentialPreservingSupport(
+              credential,
+            );
             await _postAuthSetup(result.user!);
           } catch (e) {
             debugPrint('[AuthController] Auto-verification error: $e');
@@ -421,12 +463,17 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           );
         }
         result = await confirmationResult.confirm(smsCode);
+        final anonymousToken = _pendingAnonymousSupportToken;
+        _pendingAnonymousSupportToken = null;
+        if (anonymousToken != null) {
+          await SupportChatService.transferGuestSession(anonymousToken);
+        }
       } else {
         final credential = fb.PhoneAuthProvider.credential(
           verificationId: verificationId.value,
           smsCode: smsCode,
         );
-        result = await _auth.signInWithCredential(credential);
+        result = await _signInWithCredentialPreservingSupport(credential);
       }
 
       await _postAuthSetup(result.user!);
@@ -494,6 +541,34 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  bool _credentialBelongsToExistingUser(fb.FirebaseAuthException error) =>
+      error.code == 'credential-already-in-use' ||
+      error.code == 'email-already-in-use' ||
+      error.code == 'account-exists-with-different-credential';
+
+  Future<fb.UserCredential> _signInWithCredentialPreservingSupport(
+    fb.AuthCredential credential,
+  ) async {
+    final anonymousUser = _auth.currentUser?.isAnonymous == true
+        ? _auth.currentUser
+        : null;
+    if (anonymousUser == null) {
+      return _auth.signInWithCredential(credential);
+    }
+
+    final anonymousToken = await anonymousUser.getIdToken();
+    try {
+      return await anonymousUser.linkWithCredential(credential);
+    } on fb.FirebaseAuthException catch (error) {
+      if (!_credentialBelongsToExistingUser(error)) rethrow;
+      final result = await _auth.signInWithCredential(credential);
+      if (anonymousToken != null) {
+        await SupportChatService.transferGuestSession(anonymousToken);
+      }
+      return result;
+    }
+  }
+
   // ── Post-auth setup ───────────────────────────────────────────────────────
 
   /// Order matters: upsert user → sync cart → expose user.
@@ -506,6 +581,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     final model = await _upsertSupabaseUser(firebaseUser);
     await _syncGuestCart(model.id);
     currentUser.value = model;
+    if (model.isAdmin) {
+      unawaited(SupportChatService.registerNotifications());
+    }
     unawaited(AffiliateProgramService.syncPendingAttribution());
     unawaited(_registerFcmForCurrentUser());
     final openedPendingRoute = await DeepLinkService.to.openPendingAuthRoute();
@@ -700,7 +778,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
   Future<void> _registerFcmForCurrentUser() async {
     final user = _auth.currentUser;
-    if (user == null || _isRegisteringFcm) return;
+    if (user == null || user.isAnonymous || _isRegisteringFcm) return;
     _isRegisteringFcm = true;
     try {
       await _registerFcmToken(user);
@@ -711,7 +789,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
   Future<void> _saveRefreshedFcmToken(String token) async {
     final user = _auth.currentUser;
-    if (user == null || token.isEmpty) return;
+    if (user == null || user.isAnonymous || token.isEmpty) return;
     try {
       await _upsertDeviceToken(user.uid, token);
     } catch (e) {

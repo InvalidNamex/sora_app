@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/order_detail_model.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 
 /// Combined order + user display model (view-local).
 class OrderWithUser {
@@ -217,6 +218,14 @@ class OrderManagementController extends GetxController {
       _applyFilter();
 
       await _processNotificationQueue();
+    } catch (error, stackTrace) {
+      debugPrint('[OrderManagement] updateStatus error: $error');
+      debugPrint('$stackTrace');
+      AppSnackbar.show(
+        'error'.tr,
+        error.toString(),
+        type: AppSnackbarType.error,
+      );
     } finally {
       updatingOrderId.value = null;
     }

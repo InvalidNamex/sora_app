@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage_wasm/get_storage_wasm.dart';
 
 import '../constants/app_constants.dart';
+import '../services/notification_service.dart';
+import '../services/support_chat_service.dart';
 import '../utils/locale_utils.dart';
 
 /// Handles theme mode and locale persistence via get_storage.
@@ -69,6 +73,10 @@ class SettingsController extends GetxController {
     localeCode.value = normalized;
     Get.updateLocale(Locale(normalized));
     await _box.write(AppConstants.kLocale, normalized);
+    if (Get.isRegistered<NotificationService>()) {
+      unawaited(NotificationService.to.syncLocale(normalized));
+    }
+    unawaited(SupportChatService.syncNotificationLocale());
   }
 }
 

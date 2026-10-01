@@ -19,12 +19,14 @@ class ReturnsView extends GetView<ReturnsController> {
       ],
     ),
     body: Obx(() {
-      if (controller.isLoading.value)
+      if (controller.isLoading.value) {
         return const Center(
           child: CircularProgressIndicator(color: AppConstants.darkBeige),
         );
-      if (controller.requests.isEmpty)
+      }
+      if (controller.requests.isEmpty) {
         return Center(child: Text('no_return_requests'.tr));
+      }
       return DesktopConstraint(
         child: RefreshIndicator(
           onRefresh: controller.fetch,
@@ -70,8 +72,9 @@ class _ReturnCard extends GetView<ReturnsController> {
                     onChanged: controller.updatingId.value == request.id
                         ? null
                         : (status) {
-                            if (status != null && status != request.status)
+                            if (status != null && status != request.status) {
                               controller.updateStatus(request, status);
+                            }
                           },
                   ),
                 ),

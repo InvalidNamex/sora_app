@@ -89,6 +89,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/admin-inventory",
+      "destination": "/index.html"
+    },
+    {
       "source": "/admin-bundles",
       "destination": "/index.html"
     },

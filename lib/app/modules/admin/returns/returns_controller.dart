@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../../../core/models/return_request_model.dart';
 import '../../../core/services/return_request_service.dart';
 import '../../../core/services/supabase_service.dart';
+import '../inventory_management/inventory_management_controller.dart';
 
 class ReturnsController extends GetxController {
   final requests = <ReturnRequestModel>[].obs;
@@ -41,6 +42,9 @@ class ReturnsController extends GetxController {
     try {
       await ReturnRequestService.updateStatus(request.id, status);
       await fetch();
+      if (Get.isRegistered<InventoryManagementController>()) {
+        await Get.find<InventoryManagementController>().fetchAll();
+      }
       final token = await fb.FirebaseAuth.instance.currentUser?.getIdToken();
       if (token != null && token.isNotEmpty) {
         await SupabaseService.client.functions.invoke(

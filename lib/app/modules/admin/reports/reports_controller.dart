@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../../core/models/payout_request_model.dart';
 import '../../../core/services/affiliate_program_service.dart';
+import '../../../core/services/inventory_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 
 class DailyOrderReport {
@@ -77,6 +78,18 @@ class ReportsController extends GetxController {
   final topAffiliates = <TopAffiliateReport>[].obs;
   final recentPayouts = <PayoutRequestModel>[].obs;
   final isLoading = true.obs;
+  final inventoryUnits = 0.obs;
+  final outOfStockCount = 0.obs;
+  final lowStockCount = 0.obs;
+  final inventoryCostValue = 0.0.obs;
+  final inventoryRetailValue = 0.0.obs;
+  final potentialMargin = 0.0.obs;
+  final purchaseMonthTotal = 0.0.obs;
+  final purchaseMonthDiscounts = 0.0.obs;
+  final purchaseMonthInvoices = 0.obs;
+  final topVendors = <Map<String, dynamic>>[].obs;
+  final lowStockItems = <Map<String, dynamic>>[].obs;
+  final stockMovements30Days = <String, int>{}.obs;
 
   @override
   void onReady() {
@@ -148,8 +161,46 @@ class ReportsController extends GetxController {
                 PayoutRequestModel.fromJson(Map<String, dynamic>.from(row)),
           )
           .toList();
+
+      final inventory = await InventoryService.fetchReport();
+      inventoryUnits.value =
+          (inventory['inventory_units'] as num?)?.toInt() ?? 0;
+      outOfStockCount.value =
+          (inventory['out_of_stock_count'] as num?)?.toInt() ?? 0;
+      lowStockCount.value =
+          (inventory['low_stock_count'] as num?)?.toInt() ?? 0;
+      inventoryCostValue.value =
+          (inventory['inventory_cost_value'] as num?)?.toDouble() ?? 0;
+      inventoryRetailValue.value =
+          (inventory['inventory_retail_value'] as num?)?.toDouble() ?? 0;
+      potentialMargin.value =
+          (inventory['potential_margin'] as num?)?.toDouble() ?? 0;
+      purchaseMonthTotal.value =
+          (inventory['purchase_month_total'] as num?)?.toDouble() ?? 0;
+      purchaseMonthDiscounts.value =
+          (inventory['purchase_month_discounts'] as num?)?.toDouble() ?? 0;
+      purchaseMonthInvoices.value =
+          (inventory['purchase_month_invoices'] as num?)?.toInt() ?? 0;
+      topVendors.value = ((inventory['top_vendors'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+      lowStockItems.value =
+          ((inventory['low_stock_items'] as List?) ?? const [])
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList();
+      stockMovements30Days.value = Map<String, dynamic>.from(
+        inventory['movements_30_days'] as Map? ?? const {},
+      ).map((key, value) => MapEntry(key, (value as num?)?.toInt() ?? 0));
     } on AffiliateProgramException catch (e) {
       AppSnackbar.show('error'.tr, e.message, type: AppSnackbarType.error);
+    } catch (e) {
+      AppSnackbar.show(
+        'error'.tr,
+        e.toString().replaceFirst('Bad state: ', ''),
+        type: AppSnackbarType.error,
+      );
     } finally {
       isLoading.value = false;
     }

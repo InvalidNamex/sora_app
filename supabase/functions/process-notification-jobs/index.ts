@@ -2,6 +2,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { initializeApp, cert, getApps } from 'npm:firebase-admin/app';
 import { getAuth } from 'npm:firebase-admin/auth';
 import { getMessaging } from 'npm:firebase-admin/messaging';
+import {
+  localizeNotification,
+  type NotificationLocale,
+} from './notification_localization.ts';
 
 type NotificationJob = {
   id: number;
@@ -17,6 +21,12 @@ type NotificationJob = {
 
 type DeviceTokenRow = {
   fcmToken: string;
+  isArabic: boolean;
+};
+
+type NotificationTarget = {
+  token: string;
+  locale: NotificationLocale;
 };
 
 const INVALID_TOKEN_CODES = new Set([
@@ -109,10 +119,10 @@ async function resolveOrderUserUid(serviceClient: ReturnType<typeof createClient
 async function fetchTokensForJob(
   serviceClient: ReturnType<typeof createClient>,
   job: NotificationJob,
-): Promise<string[]> {
+): Promise<NotificationTarget[]> {
   let query = serviceClient
     .from('device_tokens')
-    .select('fcmToken')
+    .select('fcmToken, isArabic')
     .eq('isActive', true);
 
   if (job.isAndroidOnly) {
@@ -157,8 +167,11 @@ async function fetchTokensForJob(
   const { data, error } = await query;
   if (error || !data) return [];
   return (data as DeviceTokenRow[])
-    .map((r) => r.fcmToken)
-    .filter((t) => typeof t === 'string' && t.length > 0);
+    .filter((row) => typeof row.fcmToken === 'string' && row.fcmToken.length > 0)
+    .map((row) => ({
+      token: row.fcmToken,
+      locale: row.isArabic ? 'ar' : 'en',
+    }));
 }
 
 async function deactivateInvalidTokens(
@@ -180,9 +193,9 @@ async function processSingleJob(
   serviceClient: ReturnType<typeof createClient>,
   job: NotificationJob,
 ) {
-  const tokens = await fetchTokensForJob(serviceClient, job);
+  const targets = await fetchTokensForJob(serviceClient, job);
 
-  if (tokens.length == 0) {
+  if (targets.length == 0) {
     await serviceClient.rpc('complete_notification_job', {
       p_job_id: job.id,
       p_status: 'sent',
@@ -199,43 +212,44 @@ async function processSingleJob(
   const invalidTokens: string[] = [];
   const failureReasons = new Map<string, number>();
 
-  for (let i = 0; i < tokens.length; i += 500) {
-    const chunk = tokens.slice(i, i + 500);
-    const response = await messaging.sendEachForMulticast({
-      tokens: chunk,
-      notification: {
-        title: job.title,
-        body: job.body,
-      },
-      data,
-      android: {
-        priority: 'high',
-      },
-      apns: {
-        headers: {
-          'apns-priority': '10',
+  for (const locale of ['ar', 'en'] as const) {
+    const localizedTargets = targets.filter((target) => target.locale === locale);
+    const content = localizeNotification(job, locale);
+    for (let i = 0; i < localizedTargets.length; i += 500) {
+      const chunk = localizedTargets.slice(i, i + 500);
+      const response = await messaging.sendEachForMulticast({
+        tokens: chunk.map((target) => target.token),
+        notification: content,
+        data,
+        android: {
+          priority: 'high',
         },
-        payload: {
-          aps: {
-            sound: 'default',
-            badge: 1,
+        apns: {
+          headers: {
+            'apns-priority': '10',
+          },
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
           },
         },
-      },
-    });
+      });
 
-    successCount += response.successCount;
-    failureCount += response.failureCount;
+      successCount += response.successCount;
+      failureCount += response.failureCount;
 
-    for (let idx = 0; idx < response.responses.length; idx++) {
-      const r = response.responses[idx];
-      if (r.success) continue;
-      const code = r.error?.code ?? '';
-      const message = r.error?.message ?? 'Unknown Firebase error';
-      const reason = code ? `${code}: ${message}` : message;
-      failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
-      if (INVALID_TOKEN_CODES.has(code)) {
-        invalidTokens.push(chunk[idx]);
+      for (let idx = 0; idx < response.responses.length; idx++) {
+        const r = response.responses[idx];
+        if (r.success) continue;
+        const code = r.error?.code ?? '';
+        const message = r.error?.message ?? 'Unknown Firebase error';
+        const reason = code ? `${code}: ${message}` : message;
+        failureReasons.set(reason, (failureReasons.get(reason) ?? 0) + 1);
+        if (INVALID_TOKEN_CODES.has(code)) {
+          invalidTokens.push(chunk[idx].token);
+        }
       }
     }
   }

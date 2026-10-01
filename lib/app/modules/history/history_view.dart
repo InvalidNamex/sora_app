@@ -10,6 +10,7 @@ import '../../routes/app_pages.dart';
 import '../auth/auth_controller.dart';
 import '../navigation/nav_controller.dart';
 import 'history_controller.dart';
+import 'order_return_request_dialog.dart';
 
 /// Order history tab.
 class HistoryView extends GetView<HistoryController> {
@@ -54,8 +55,11 @@ class HistoryView extends GetView<HistoryController> {
             padding: const EdgeInsets.all(16),
             itemCount: controller.orders.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, i) =>
-                _OrderCard(order: controller.orders[i]),
+            itemBuilder: (context, i) => _OrderCard(
+              order: controller.orders[i],
+              onRequestReturn: () =>
+                  _showReturnDialog(context, controller.orders[i]),
+            ),
           );
         }
 
@@ -66,6 +70,62 @@ class HistoryView extends GetView<HistoryController> {
         );
       }),
     );
+  }
+
+  Future<void> _showReturnDialog(
+    BuildContext context,
+    OrderMasterModel order,
+  ) async {
+    final options = controller.loadReturnOptions(order.id);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => FutureBuilder<OrderReturnOptions>(
+        future: options,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: Text('return_order'.tr),
+              content: Text('error_loading'.tr),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('close'.tr),
+                ),
+              ],
+            );
+          }
+          final data = snapshot.data;
+          if (data == null) {
+            return AlertDialog(
+              title: Text('return_order'.tr),
+              content: const SizedBox(
+                width: 48,
+                height: 64,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+          final user = AuthController.to.currentUser.value;
+          return OrderReturnRequestDialog(
+            items: data.items,
+            unavailableDetailIds: data.unavailableDetailIds,
+            initialName: user?.name ?? '',
+            initialPhone: user?.phone ?? '',
+            onSubmit: (submission) => controller.submitReturns(
+              orderId: order.id,
+              detailIds: submission.detailIds,
+              name: submission.name,
+              phone: submission.phone,
+              whatsapp: submission.whatsapp,
+              reason: submission.reason,
+            ),
+          );
+        },
+      ),
+    );
+    if (result == true && context.mounted) {
+      Get.snackbar('return_submitted'.tr, 'return_submitted_message'.tr);
+    }
   }
 }
 
@@ -139,8 +199,9 @@ class _HistoryErrorState extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order});
+  const _OrderCard({required this.order, required this.onRequestReturn});
   final OrderMasterModel order;
+  final VoidCallback onRequestReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -204,25 +265,50 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // Status badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  order.orderStatus,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
+              // Status badge and delivered-order return action.
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Text(
+                      order.orderStatus,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
-                ),
+                  if (order.orderStatus == 'Delivered')
+                    TextButton(
+                      onPressed: onRequestReturn,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 28),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        'request_return'.tr,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

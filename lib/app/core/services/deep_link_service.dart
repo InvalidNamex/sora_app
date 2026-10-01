@@ -136,6 +136,23 @@ class DeepLinkService extends GetxService {
         if (AuthController.to.currentUser.value?.isAdmin != true) return false;
         await _openRoute(Routes.adminAffiliates);
         return true;
+      case 'admin-support':
+        if (AuthController.to.currentUser.value?.isAdmin != true) return false;
+        final conversationId = segments.length > 1 ? segments[1].trim() : '';
+        await _openRoute(
+          conversationId.isEmpty
+              ? Routes.adminSupport
+              : Routes.adminSupportChatPath(conversationId),
+        );
+        return true;
+      case 'support':
+        final conversationId = segments.length > 1 ? segments[1].trim() : '';
+        await _openRoute(
+          conversationId.isEmpty
+              ? Routes.support
+              : Routes.supportChatPath(conversationId),
+        );
+        return true;
       case 'affiliate':
         if (AuthController.to.currentUser.value?.isAffiliate != true) {
           await AuthController.to.refreshCurrentUser();

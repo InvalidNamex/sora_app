@@ -1,11 +1,11 @@
 {
-    "name": "Premium Perfumes and Cosmetics",
+    "name": "Sora | Premium Perfumes & Cosmetics",
     "short_name": "Sora",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F1F0E9",
     "theme_color": "#B09263",
-    "description": "Premium Perfumes and Cosmetics",
+    "description": "Shop premium perfumes, fragrances, and cosmetics online from Sora in Egypt.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

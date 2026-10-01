@@ -8,6 +8,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/affiliate_program_models.dart';
 import '../../../core/models/payout_request_model.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/text_editing_controller_scope.dart';
 import 'affiliate_management_controller.dart';
 
 /// Affiliate management: applications, payouts, and manual user controls.
@@ -361,32 +362,39 @@ Future<void> _showApplicationReview(
   required bool approve,
 }) async {
   final noteCtrl = TextEditingController();
+  var note = '';
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(approve ? 'approve_application'.tr : 'reject_application'.tr),
-      content: TextField(
-        controller: noteCtrl,
-        maxLines: 3,
-        decoration: InputDecoration(
-          labelText: 'admin_note'.tr,
-          border: const OutlineInputBorder(),
+    builder: (context) => TextEditingControllerScope(
+      controllers: [noteCtrl],
+      child: AlertDialog(
+        title: Text(
+          approve ? 'approve_application'.tr : 'reject_application'.tr,
         ),
+        content: TextField(
+          controller: noteCtrl,
+          maxLines: 3,
+          decoration: InputDecoration(
+            labelText: 'admin_note'.tr,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('cancel'.tr),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              note = noteCtrl.text;
+              Navigator.of(context).pop(true);
+            },
+            child: Text(approve ? 'approve'.tr : 'reject'.tr),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text('cancel'.tr),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(approve ? 'approve'.tr : 'reject'.tr),
-        ),
-      ],
     ),
   );
-  final note = noteCtrl.text;
-  noteCtrl.dispose();
   if (confirmed != true) return;
   await controller.reviewApplication(
     application.id,
@@ -404,61 +412,64 @@ Future<void> _showPayoutReview(
   final referenceCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  var reference = '';
+  var note = '';
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(paid ? 'mark_paid'.tr : 'reject_payout'.tr),
-      content: Form(
-        key: formKey,
-        child: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (paid)
-                TextFormField(
-                  controller: referenceCtrl,
-                  textDirection: ui.TextDirection.ltr,
+    builder: (context) => TextEditingControllerScope(
+      controllers: [referenceCtrl, noteCtrl],
+      child: AlertDialog(
+        title: Text(paid ? 'mark_paid'.tr : 'reject_payout'.tr),
+        content: Form(
+          key: formKey,
+          child: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (paid)
+                  TextFormField(
+                    controller: referenceCtrl,
+                    textDirection: ui.TextDirection.ltr,
+                    decoration: InputDecoration(
+                      labelText: 'payment_reference'.tr,
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: (value) => (value?.trim().length ?? 0) < 3
+                        ? 'payment_reference_required'.tr
+                        : null,
+                  ),
+                if (paid) const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: 'payment_reference'.tr,
+                    labelText: 'admin_note'.tr,
                     border: const OutlineInputBorder(),
                   ),
-                  validator: (value) => (value?.trim().length ?? 0) < 3
-                      ? 'payment_reference_required'.tr
-                      : null,
                 ),
-              if (paid) const SizedBox(height: 12),
-              TextField(
-                controller: noteCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'admin_note'.tr,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('cancel'.tr),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (paid && formKey.currentState?.validate() != true) return;
+              reference = referenceCtrl.text;
+              note = noteCtrl.text;
+              Navigator.of(context).pop(true);
+            },
+            child: Text(paid ? 'mark_paid'.tr : 'reject'.tr),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text('cancel'.tr),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (paid && formKey.currentState?.validate() != true) return;
-            Navigator.of(context).pop(true);
-          },
-          child: Text(paid ? 'mark_paid'.tr : 'reject'.tr),
-        ),
-      ],
     ),
   );
-  final reference = referenceCtrl.text;
-  final note = noteCtrl.text;
-  referenceCtrl.dispose();
-  noteCtrl.dispose();
   if (confirmed != true) return;
   await controller.reviewPayout(
     request.id,

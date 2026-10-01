@@ -117,6 +117,12 @@ class AdminView extends GetView<AdminController> {
                 ),
                 const SizedBox(height: 10),
                 _NavTile(
+                  icon: Icons.warehouse_outlined,
+                  title: 'inventory_purchasing'.tr,
+                  onTap: () => Get.toNamed(Routes.adminInventory),
+                ),
+                const SizedBox(height: 10),
+                _NavTile(
                   icon: Icons.view_carousel_outlined,
                   title: 'home_sections'.tr,
                   onTap: () => Get.toNamed(Routes.adminHomeSections),
@@ -156,6 +162,12 @@ class AdminView extends GetView<AdminController> {
                   icon: Icons.bar_chart,
                   title: 'reports'.tr,
                   onTap: () => Get.toNamed(Routes.adminReports),
+                ),
+                const SizedBox(height: 10),
+                _NavTile(
+                  icon: Icons.support_agent,
+                  title: 'support_chats'.tr,
+                  onTap: () => Get.toNamed(Routes.adminSupport),
                 ),
                 const SizedBox(height: 10),
                 _NavTile(

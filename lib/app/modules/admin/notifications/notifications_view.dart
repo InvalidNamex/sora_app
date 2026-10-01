@@ -70,7 +70,7 @@ class NotificationsView extends GetView<NotificationsController> {
                     TextField(
                       controller: controller.campaignTitleCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Header',
+                        labelText: 'English header',
                         hintText: 'Summer discounts are live',
                       ),
                     ),
@@ -79,8 +79,28 @@ class NotificationsView extends GetView<NotificationsController> {
                       controller: controller.campaignBodyCtrl,
                       maxLines: 3,
                       decoration: const InputDecoration(
-                        labelText: 'Message',
+                        labelText: 'English message',
                         hintText: 'Up to 30% off selected items this week.',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller.campaignTitleArCtrl,
+                      textDirection: TextDirection.rtl,
+                      decoration: const InputDecoration(
+                        labelText: 'Arabic header',
+                        hintText: 'خصومات الصيف بدأت',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller.campaignBodyArCtrl,
+                      textDirection: TextDirection.rtl,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Arabic message',
+                        hintText:
+                            'خصم يصل إلى 30٪ على منتجات مختارة هذا الأسبوع.',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -198,9 +218,24 @@ class _AdminInboxSection extends StatelessWidget {
         return Column(
           children: notifications
               .map(
-                (notification) => _AdminNotificationTile(
-                  notification: notification,
-                  onTap: () => controller.openAdminNotification(notification),
+                (notification) => Dismissible(
+                  key: ValueKey(notification.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 16),
+                    color: Colors.red.shade100,
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  onDismissed: (_) =>
+                      controller.dismissAdminNotification(notification),
+                  child: _AdminNotificationTile(
+                    notification: notification,
+                    onTap: () => controller.openAdminNotification(notification),
+                  ),
                 ),
               )
               .toList(growable: false),

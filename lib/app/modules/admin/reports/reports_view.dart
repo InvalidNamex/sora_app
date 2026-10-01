@@ -37,6 +37,8 @@ class ReportsView extends GetView<ReportsController> {
               children: [
                 _ReportKpis(controller: controller),
                 const SizedBox(height: 24),
+                _InventoryPurchasingReport(controller: controller),
+                const SizedBox(height: 24),
                 _DailyOrders(controller: controller),
                 const SizedBox(height: 24),
                 _OrderStatusBreakdown(controller: controller),
@@ -51,6 +53,137 @@ class ReportsView extends GetView<ReportsController> {
           ),
         );
       }),
+    );
+  }
+}
+
+class _InventoryPurchasingReport extends StatelessWidget {
+  const _InventoryPurchasingReport({required this.controller});
+
+  final ReportsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle('inventory_purchasing_report'.tr),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _InlineStat(
+              label: 'inventory_units'.tr,
+              value: '${controller.inventoryUnits.value}',
+            ),
+            _InlineStat(
+              label: 'inventory_cost_value'.tr,
+              value: _money(controller.inventoryCostValue.value),
+            ),
+            _InlineStat(
+              label: 'inventory_retail_value'.tr,
+              value: _money(controller.inventoryRetailValue.value),
+            ),
+            _InlineStat(
+              label: 'potential_margin'.tr,
+              value: _money(controller.potentialMargin.value),
+            ),
+            _InlineStat(
+              label: 'purchases_this_month'.tr,
+              value: _money(controller.purchaseMonthTotal.value),
+            ),
+            _InlineStat(
+              label: 'purchase_discounts_this_month'.tr,
+              value: _money(controller.purchaseMonthDiscounts.value),
+            ),
+            _InlineStat(
+              label: 'purchase_invoices_this_month'.tr,
+              value: '${controller.purchaseMonthInvoices.value}',
+            ),
+            _InlineStat(
+              label: 'low_stock'.tr,
+              value:
+                  '${controller.lowStockCount.value} / ${controller.outOfStockCount.value} ${'out'.tr}',
+            ),
+          ],
+        ),
+        if (controller.stockMovements30Days.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text(
+            'stock_flow_last_30_days'.tr,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final entry in controller.stockMovements30Days.entries)
+                _InlineStat(label: entry.key.tr, value: '${entry.value}'),
+            ],
+          ),
+        ],
+        if (controller.topVendors.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text('top_vendors'.tr, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final vendor in controller.topVendors)
+                  ListTile(
+                    leading: const Icon(Icons.business_outlined),
+                    title: Text('${vendor['name'] ?? vendor['company'] ?? ''}'),
+                    subtitle: Text(
+                      '${(vendor['invoices'] as num?)?.toInt() ?? 0} '
+                      '${'purchase_invoices'.tr}',
+                    ),
+                    trailing: Text(
+                      _money((vendor['total'] as num?)?.toDouble() ?? 0),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (controller.lowStockItems.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text(
+            'reorder_watchlist'.tr,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final item in controller.lowStockItems)
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      ((item['quantity'] as num?)?.toInt() ?? 0) == 0
+                          ? Icons.error_outline
+                          : Icons.warning_amber,
+                      color: ((item['quantity'] as num?)?.toInt() ?? 0) == 0
+                          ? Colors.red
+                          : Colors.orange,
+                    ),
+                    title: Text(
+                      Get.locale?.languageCode == 'en' &&
+                              '${item['name_en'] ?? ''}'.trim().isNotEmpty
+                          ? '${item['name_en']}'
+                          : '${item['name'] ?? ''}',
+                    ),
+                    subtitle: Text('${item['size'] ?? 0} ml'),
+                    trailing: Text('${item['quantity'] ?? 0}'),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

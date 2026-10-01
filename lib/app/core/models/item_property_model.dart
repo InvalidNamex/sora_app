@@ -11,6 +11,7 @@ class ItemPropertyModel {
   final String _propertyDescriptionEn;
   final double price;
   final double discountPercentage;
+  final int stockQuantity;
   final bool inStock;
   final bool isDefault;
 
@@ -53,6 +54,7 @@ class ItemPropertyModel {
     String propertyDescriptionEn = '',
     required this.price,
     this.discountPercentage = 0,
+    this.stockQuantity = 0,
     this.inStock = true,
     this.isDefault = false,
   }) : _propertyDescription = propertyDescription,
@@ -75,6 +77,7 @@ class ItemPropertyModel {
         price: (json['price'] as num?)?.toDouble() ?? 0,
         discountPercentage:
             (json['discountPercentage'] as num?)?.toDouble() ?? 0,
+        stockQuantity: (json['stockQuantity'] as num?)?.toInt() ?? 0,
         inStock: (json['inStock'] as bool?) ?? true,
         isDefault: (json['isDefault'] as bool?) ?? false,
       );

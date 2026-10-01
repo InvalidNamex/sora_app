@@ -53,3 +53,4 @@ app.*.map.json
 /android/app/*.keystore
 
 sentry.properties
+.vercel

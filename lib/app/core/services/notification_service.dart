@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 
 import '../../../firebase_options.dart';
 import 'link_navigation_service.dart';
+import 'supabase_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -68,6 +69,27 @@ class NotificationService extends GetxService {
             IOSFlutterLocalNotificationsPlugin
           >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
+    }
+  }
+
+  /// Keeps the server-side language for this device in sync with the locale
+  /// selected inside the app. This does not request notification permission.
+  Future<void> syncLocale(String languageCode) async {
+    if (kIsWeb) return;
+    try {
+      final token = await _messaging.getToken();
+      if (token == null || token.isEmpty) return;
+      await SupabaseService.client
+          .from('device_tokens')
+          .update({
+            'isArabic': languageCode == 'ar',
+            'lastSeen': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('fcmToken', token);
+    } catch (error) {
+      debugPrint(
+        '[NotificationService] Could not sync notification locale: $error',
+      );
     }
   }
 

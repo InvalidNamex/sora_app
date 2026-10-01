@@ -20,6 +20,8 @@ import '../modules/admin/notifications/notifications_binding.dart';
 import '../modules/admin/notifications/notifications_view.dart';
 import '../modules/admin/item_suggestions/item_suggestions_binding.dart';
 import '../modules/admin/item_suggestions/item_suggestions_view.dart';
+import '../modules/admin/inventory_management/inventory_management_binding.dart';
+import '../modules/admin/inventory_management/inventory_management_view.dart';
 import '../modules/admin/order_management/order_management_binding.dart';
 import '../modules/admin/order_management/order_management_view.dart';
 import '../modules/admin/reports/reports_binding.dart';
@@ -30,6 +32,10 @@ import '../modules/admin/feedback/feedback_binding.dart';
 import '../modules/admin/feedback/feedback_view.dart';
 import '../modules/admin/returns/returns_binding.dart';
 import '../modules/admin/returns/returns_view.dart';
+import '../modules/admin/support/support_admin_binding.dart';
+import '../modules/admin/support/support_admin_chat_binding.dart';
+import '../modules/admin/support/support_admin_chat_view.dart';
+import '../modules/admin/support/support_admin_view.dart';
 import '../modules/affiliate/affiliate_binding.dart';
 import '../modules/affiliate/affiliate_view.dart';
 import '../modules/auth/auth_view.dart';
@@ -49,6 +55,9 @@ import '../modules/history/order_review_binding.dart';
 import '../modules/history/order_review_view.dart';
 import '../modules/location_picker/location_picker_binding.dart';
 import '../modules/location_picker/location_picker_page.dart';
+import '../modules/support/support_binding.dart';
+import '../modules/support/support_view.dart';
+import '../modules/contact/suggest_product_view.dart';
 import '../modules/legal/privacy_policy_view.dart';
 import '../modules/home/catalog_view.dart';
 
@@ -161,6 +170,12 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: Routes.adminInventory,
+      page: () => const InventoryManagementView(),
+      binding: InventoryManagementBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: Routes.adminFeedback,
       page: () => const FeedbackView(),
       binding: FeedbackBinding(),
@@ -170,6 +185,18 @@ class AppPages {
       name: Routes.adminReturns,
       page: () => const ReturnsView(),
       binding: ReturnsBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminSupport,
+      page: () => const SupportAdminView(),
+      binding: SupportAdminBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: Routes.adminSupportChat,
+      page: () => const SupportAdminChatView(),
+      binding: SupportAdminChatBinding(),
       middlewares: [AdminGuard()],
     ),
     GetPage(
@@ -204,9 +231,24 @@ class AppPages {
     ),
     GetPage(name: Routes.privacyPolicy, page: () => const PrivacyPolicyView()),
     GetPage(
+      name: Routes.support,
+      page: () => const SupportView(),
+      binding: SupportBinding(),
+    ),
+    GetPage(
+      name: Routes.supportChat,
+      page: () => const SupportView(),
+      binding: SupportBinding(),
+    ),
+    GetPage(
       name: Routes.accountDeletion,
       page: () => const AccountDeletionView(),
       binding: AccountDeletionBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: Routes.suggestProduct,
+      page: () => const SuggestProductView(),
       middlewares: [AuthGuard()],
     ),
   ];

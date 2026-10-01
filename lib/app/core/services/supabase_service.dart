@@ -14,7 +14,13 @@ class SupabaseService {
     await Supabase.initialize(
       url: dotenv.env['SUPABASE_URL']!,
       publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
-      accessToken: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
+      accessToken: () async {
+        final user = FirebaseAuth.instance.currentUser;
+        // Anonymous Firebase identities are used only to secure guest support
+        // chats. Supabase should continue using its public anon role for them.
+        if (user == null || user.isAnonymous) return null;
+        return user.getIdToken();
+      },
     );
   }
 

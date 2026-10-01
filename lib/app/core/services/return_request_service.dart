@@ -27,15 +27,41 @@ class ReturnRequestService {
     required bool hasWhatsapp,
     required String reason,
   }) async {
-    await SupabaseService.client.from('return_requests').insert({
-      'order_id': orderId,
-      'order_detail_id': detailId,
-      'user_id': userId,
-      'customer_name': name.trim(),
-      'customer_phone': phone.trim(),
-      'has_whatsapp': hasWhatsapp,
-      'reason': reason.trim(),
-    });
+    await createMany(
+      orderId: orderId,
+      detailIds: [detailId],
+      userId: userId,
+      name: name,
+      phone: phone,
+      hasWhatsapp: hasWhatsapp,
+      reason: reason,
+    );
+  }
+
+  static Future<void> createMany({
+    required int orderId,
+    required Iterable<int> detailIds,
+    required int userId,
+    required String name,
+    required String phone,
+    required bool hasWhatsapp,
+    required String reason,
+  }) async {
+    final rows = detailIds
+        .map(
+          (detailId) => {
+            'order_id': orderId,
+            'order_detail_id': detailId,
+            'user_id': userId,
+            'customer_name': name.trim(),
+            'customer_phone': phone.trim(),
+            'has_whatsapp': hasWhatsapp,
+            'reason': reason.trim(),
+          },
+        )
+        .toList(growable: false);
+    if (rows.isEmpty) return;
+    await SupabaseService.client.from('return_requests').insert(rows);
   }
 
   static Future<List<ReturnRequestModel>> forAdmin() async {
@@ -60,7 +86,7 @@ class ReturnRequestService {
   }) async {
     await SupabaseService.client
         .from('return_requests')
-        .update({'status': status, if (note != null) 'admin_note': note})
+        .update({'status': status, 'admin_note': ?note})
         .eq('id', id);
   }
 }

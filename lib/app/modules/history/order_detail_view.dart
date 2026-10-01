@@ -216,7 +216,13 @@ class OrderDetailView extends GetView<OrderDetailController> {
                               ),
                               child: Text(
                                 existingReturn?.status ?? 'request_return'.tr,
-                                style: const TextStyle(fontSize: 11),
+                                style: existingReturn == null
+                                    ? const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      )
+                                    : const TextStyle(fontSize: 11),
                               ),
                             ),
                         ],

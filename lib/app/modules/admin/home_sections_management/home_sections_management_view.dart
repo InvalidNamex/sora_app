@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/home_section_model.dart';
+import '../../../core/widgets/text_editing_controller_scope.dart';
 import 'home_sections_management_controller.dart';
 
 class HomeSectionsManagementView
@@ -119,123 +120,133 @@ class HomeSectionsManagementView
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: SafeArea(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.9,
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      section == null
-                          ? 'add_home_section'.tr
-                          : 'edit_home_section'.tr,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: titleAr,
-                      decoration: InputDecoration(labelText: 'arabic_title'.tr),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: titleEn,
-                      decoration: InputDecoration(
-                        labelText: 'english_title'.tr,
+      builder: (sheetContext) => TextEditingControllerScope(
+        controllers: [titleAr, titleEn, limit],
+        child: StatefulBuilder(
+          builder: (context, setState) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        section == null
+                            ? 'add_home_section'.tr
+                            : 'edit_home_section'.tr,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: type,
-                      decoration: InputDecoration(labelText: 'section_type'.tr),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'manual',
-                          child: Text('custom_products'.tr),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: titleAr,
+                        decoration: InputDecoration(
+                          labelText: 'arabic_title'.tr,
                         ),
-                        DropdownMenuItem(
-                          value: 'recently_added',
-                          child: Text('recently_added'.tr),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: titleEn,
+                        decoration: InputDecoration(
+                          labelText: 'english_title'.tr,
                         ),
-                        DropdownMenuItem(
-                          value: 'discounted',
-                          child: Text('discounted_items'.tr),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: type,
+                        decoration: InputDecoration(
+                          labelText: 'section_type'.tr,
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'manual',
+                            child: Text('custom_products'.tr),
+                          ),
+                          DropdownMenuItem(
+                            value: 'recently_added',
+                            child: Text('recently_added'.tr),
+                          ),
+                          DropdownMenuItem(
+                            value: 'discounted',
+                            child: Text('discounted_items'.tr),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => type = value ?? type),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: limit,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'maximum_products'.tr,
+                        ),
+                      ),
+                      if (type == 'manual') ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final ids = await _pickProducts(
+                              context,
+                              selectedIds,
+                            );
+                            if (ids != null) setState(() => selectedIds = ids);
+                          },
+                          icon: const Icon(Icons.inventory_2_outlined),
+                          label: Text(
+                            'products_selected'.trParams({
+                              'count': '${selectedIds.length}',
+                            }),
+                          ),
                         ),
                       ],
-                      onChanged: (value) =>
-                          setState(() => type = value ?? type),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: limit,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'maximum_products'.tr,
+                      const SizedBox(height: 4),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: active,
+                        activeThumbColor: AppConstants.darkBeige,
+                        onChanged: (value) => setState(() => active = value),
+                        title: Text('visible_on_home_page'.tr),
                       ),
-                    ),
-                    if (type == 'manual') ...[
                       const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final ids = await _pickProducts(context, selectedIds);
-                          if (ids != null) setState(() => selectedIds = ids);
-                        },
-                        icon: const Icon(Icons.inventory_2_outlined),
-                        label: Text(
-                          'products_selected'.trParams({
-                            'count': '${selectedIds.length}',
-                          }),
+                      Obx(
+                        () => FilledButton.icon(
+                          onPressed: controller.isSaving.value
+                              ? null
+                              : () async {
+                                  final saved = await controller.saveSection(
+                                    existing: section,
+                                    titleAr: titleAr.text,
+                                    titleEn: titleEn.text,
+                                    type: type,
+                                    itemLimit: int.tryParse(limit.text) ?? 10,
+                                    isActive: active,
+                                    itemIds: selectedIds.toList(),
+                                  );
+                                  if (saved && context.mounted) {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                          icon: controller.isSaving.value
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: Text('save_section'.tr),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 4),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: active,
-                      activeThumbColor: AppConstants.darkBeige,
-                      onChanged: (value) => setState(() => active = value),
-                      title: Text('visible_on_home_page'.tr),
-                    ),
-                    const SizedBox(height: 12),
-                    Obx(
-                      () => FilledButton.icon(
-                        onPressed: controller.isSaving.value
-                            ? null
-                            : () async {
-                                final saved = await controller.saveSection(
-                                  existing: section,
-                                  titleAr: titleAr.text,
-                                  titleEn: titleEn.text,
-                                  type: type,
-                                  itemLimit: int.tryParse(limit.text) ?? 10,
-                                  isActive: active,
-                                  itemIds: selectedIds.toList(),
-                                );
-                                if (saved && context.mounted) {
-                                  Navigator.pop(context);
-                                }
-                              },
-                        icon: controller.isSaving.value
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text('save_section'.tr),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -243,12 +254,6 @@ class HomeSectionsManagementView
         ),
       ),
     );
-    // The sheet's future completes when it starts closing, while its exit
-    // animation can still rebuild the text fields for a few frames.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    titleAr.dispose();
-    titleEn.dispose();
-    limit.dispose();
   }
 
   Future<Set<int>?> _pickProducts(

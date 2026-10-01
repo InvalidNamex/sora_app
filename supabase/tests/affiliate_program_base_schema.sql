@@ -12,6 +12,7 @@ create table public.users (
 create table public.items (
   id bigserial primary key,
   "itemName" text not null,
+  "itemNameEN" text not null default '',
   "isFeatured" boolean not null default false
 );
 
@@ -19,6 +20,9 @@ create table public.item_properties (
   id bigserial primary key,
   "itemID" bigint not null references public.items(id),
   price double precision not null,
+  size integer not null default 0,
+  "PropertyDescription" text not null default '',
+  "propertyDescriptionEN" text not null default '',
   "inStock" boolean not null default true,
   "affiliatePercentage" double precision
 );

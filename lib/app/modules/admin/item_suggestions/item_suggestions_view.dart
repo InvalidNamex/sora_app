@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' as intl;
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/item_suggestion_model.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/text_editing_controller_scope.dart';
 import 'item_suggestions_controller.dart';
 
 class ItemSuggestionsView extends GetView<ItemSuggestionsController> {
@@ -104,77 +105,79 @@ class ItemSuggestionsView extends GetView<ItemSuggestionsController> {
     var selectedStatus = suggestion.status;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('suggestion_review'.tr),
-          content: SizedBox(
-            width: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'suggestion_status'.tr,
+      builder: (dialogContext) => TextEditingControllerScope(
+        controllers: [noteController],
+        child: StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: Text('suggestion_review'.tr),
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedStatus,
+                    decoration: InputDecoration(
+                      labelText: 'suggestion_status'.tr,
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'pending',
+                        child: Text('suggestion_pending'.tr),
+                      ),
+                      DropdownMenuItem(
+                        value: 'approved',
+                        child: Text('suggestion_approved'.tr),
+                      ),
+                      DropdownMenuItem(
+                        value: 'rejected',
+                        child: Text('suggestion_rejected'.tr),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => selectedStatus = value);
+                      }
+                    },
                   ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'pending',
-                      child: Text('suggestion_pending'.tr),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: noteController,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 2000,
+                    decoration: InputDecoration(
+                      labelText: 'suggestion_admin_note'.tr,
+                      alignLabelWithHint: true,
                     ),
-                    DropdownMenuItem(
-                      value: 'approved',
-                      child: Text('suggestion_approved'.tr),
-                    ),
-                    DropdownMenuItem(
-                      value: 'rejected',
-                      child: Text('suggestion_rejected'.tr),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => selectedStatus = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: noteController,
-                  minLines: 3,
-                  maxLines: 5,
-                  maxLength: 2000,
-                  decoration: InputDecoration(
-                    labelText: 'suggestion_admin_note'.tr,
-                    alignLabelWithHint: true,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text('cancel'.tr),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final saved = await controller.review(
+                    suggestion,
+                    status: selectedStatus,
+                    adminNote: noteController.text,
+                  );
+                  if (saved && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: Text('save'.tr),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('cancel'.tr),
-            ),
-            FilledButton.icon(
-              onPressed: () async {
-                final saved = await controller.review(
-                  suggestion,
-                  status: selectedStatus,
-                  adminNote: noteController.text,
-                );
-                if (saved && dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-              },
-              icon: const Icon(Icons.save_outlined),
-              label: Text('save'.tr),
-            ),
-          ],
         ),
       ),
     );
-    noteController.dispose();
   }
 }
 

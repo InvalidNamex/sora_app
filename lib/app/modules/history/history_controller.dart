@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/models/order_master_model.dart';
+import '../../core/models/order_detail_model.dart';
+import '../../core/services/return_request_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/order_feedback_service.dart';
 import '../../routes/app_pages.dart';
@@ -148,4 +150,59 @@ class HistoryController extends GetxController {
     await Future<void>.delayed(const Duration(milliseconds: 120));
     await Get.toNamed(Routes.orderReviewPath(orderId), arguments: orderId);
   }
+
+  Future<OrderReturnOptions> loadReturnOptions(int orderId) async {
+    final detailsFuture = SupabaseService.client
+        .from('order_detail')
+        .select()
+        .eq('orderMasterID', orderId);
+    final requestsFuture = ReturnRequestService.forOrder(orderId);
+    final detailRows = await detailsFuture;
+    final requests = await requestsFuture;
+    final details = (detailRows as List)
+        .map((row) => OrderDetailModel.fromJson(row as Map<String, dynamic>))
+        .toList(growable: false);
+    final requestedIds = requests
+        .map((request) => request.orderDetailId)
+        .toSet();
+    return OrderReturnOptions(
+      items: details,
+      unavailableDetailIds: requestedIds,
+    );
+  }
+
+  Future<void> submitReturns({
+    required int orderId,
+    required Iterable<int> detailIds,
+    required String name,
+    required String phone,
+    required bool whatsapp,
+    required String reason,
+  }) async {
+    final user = AuthController.to.currentUser.value;
+    if (user == null) return;
+    if (user.name.trim().isEmpty) await AuthController.to.updateName(name);
+    if (user.phone.trim().isEmpty) {
+      await AuthController.to.updatePhoneNumbers(phone: phone);
+    }
+    await ReturnRequestService.createMany(
+      orderId: orderId,
+      detailIds: detailIds,
+      userId: user.id,
+      name: name,
+      phone: phone,
+      hasWhatsapp: whatsapp,
+      reason: reason,
+    );
+  }
+}
+
+class OrderReturnOptions {
+  const OrderReturnOptions({
+    required this.items,
+    required this.unavailableDetailIds,
+  });
+
+  final List<OrderDetailModel> items;
+  final Set<int> unavailableDetailIds;
 }
